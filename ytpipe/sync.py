@@ -60,7 +60,10 @@ def audio_estimate(face, desk, prior=None, win_s=30.0):
         pts.append({"face_t": round(f0, 2), "offset_s": round(L0 - 1.0 + lg / 16000, 4), "confidence": round(cf, 2)})
     offs = np.array([p["offset_s"] for p in pts]); ts = np.array([p["face_t"] for p in pts])
     drift_ppm = float(np.polyfit(ts, offs, 1)[0] * 1e6) if len(pts) >= 2 else 0.0
-    good = all(p["confidence"] >= 2.0 for p in pts)
+    # Two different microphones (clip-on vs computer) give low sample-level peaks even when the timing is exact. Then the
+    # proof is agreement: a strong coarse match and every window landing within half a frame (30 fps) of the others.
+    agree = len(pts) >= 3 and conf >= 5.0 and float(np.ptp(offs)) <= 1 / 60
+    good = all(p["confidence"] >= 2.0 for p in pts) or agree
     return {"status": "ok" if good else "weak", "offset_s": round(float(np.median(offs)), 4),
             "uncertainty_s": round(float(max(0.005, np.ptp(offs) / 2)), 4), "drift_ppm": round(drift_ppm, 1),
             "points": pts, "coarse_confidence": round(conf, 2)}

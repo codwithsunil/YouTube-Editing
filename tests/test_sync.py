@@ -35,3 +35,20 @@ def test_sync_sections_split_segments_and_carry_their_offset():
 def test_hold_section_pauses_the_desktop_on_one_frame():
     out = sync.split_sections([{"layout": "B", "face_in": 250.0, "face_out": 315.5}], [(239.0, 278.2, 114.1), (278.2, 400.0, None, 392.3)])
     assert [(s["face_in"], s.get("desk_hold"), s["desk_offset"]) for s in out] == [(250.0, None, 114.1), (278.2, 392.3, 114.1)]
+
+def _fake_audio_estimate(monkeypatch, fine):
+    """audio_estimate with a coarse match of +52 s (confidence 11.8) and the given fine windows [(offset_s, confidence)]."""
+    import numpy as np
+    from ytpipe import sync
+    monkeypatch.setattr(sync.media, "audio", lambda path, sr=8000, ss=None, t=None: np.zeros(int(sr * (t or 600))))
+    calls = iter([(int(52.0 * 8000 / 80), 11.8)] + [(int(round((o - 52.0 + 1.0) * 16000)), c) for o, c in fine])
+    monkeypatch.setattr(sync, "xcorr_lag", lambda a, b: next(calls))
+    return sync.audio_estimate("face", "desk")
+
+def test_two_microphones_agreeing_windows_are_proof(monkeypatch):
+    r = _fake_audio_estimate(monkeypatch, [(52.0881, 1.22), (52.0818, 1.46), (52.0766, 1.31)])  # lesson07: clip-on vs computer mic
+    assert r["status"] == "ok" and abs(r["offset_s"] - 52.082) < 0.001
+
+def test_low_confidence_windows_that_disagree_stay_weak(monkeypatch):
+    r = _fake_audio_estimate(monkeypatch, [(52.088, 1.22), (52.30, 1.46), (52.077, 1.31)])
+    assert r["status"] == "weak"

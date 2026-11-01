@@ -217,8 +217,10 @@ def _status(privacy, at=None):
 def plan(series, ids, root=".", now=None, partial=False, public=()):
     """Every API change, in order, plus problems that block it. Hash = what 'apply --approve' must name.
     partial: items not uploaded yet are left for a later plan (listed under 'waiting') instead of blocking this one.
-    public: keys already public on YouTube. Long videos made public in Studio stay public (never switched back to
-    private); a Short that went public at its scheduled time keeps its planned schedule, so the plan hash is unchanged."""
+    public: keys already public on YouTube. Long videos that are public stay public: they are never switched back to
+    private and need no go_public step. This is a safety rule applied to the steps, not part of what you approve: the
+    hash covers the intended plan only, so it does not change when videos go public (by this plan, on a Short's
+    schedule, or in Studio)."""
     now = now or datetime.datetime.now(datetime.timezone.utc); steps, problems, waiting = [], [], []
     its = items(series, root)
     for it in its:
@@ -233,7 +235,7 @@ def plan(series, ids, root=".", now=None, partial=False, public=()):
         snippet = {"title": title, "description": desc, "tags": tags, "categoryId": EDUCATION,
                    "defaultLanguage": series["language"], "defaultAudioLanguage": series["language"]}
         steps.append({"op": "metadata", "key": it["key"], "id": ids[it["key"]], "snippet": snippet,
-                      "status": _status("public") if it["key"] in public and it["kind"] == "video" else _status("private", at)})
+                      "status": _status("private", at)})
         if it["thumbnail"]: steps.append({"op": "thumbnail", "key": it["key"], "id": ids[it["key"]], "file": it["thumbnail"], "sha": _sha(it["thumbnail"])})
         if it["captions"]: steps.append({"op": "captions", "key": it["key"], "id": ids[it["key"]], "file": it["captions"], "sha": _sha(it["captions"]),
                                          "language": series["language"], "name": series["captions_name"]})
@@ -241,9 +243,14 @@ def plan(series, ids, root=".", now=None, partial=False, public=()):
         members = [it["key"] for it in its if pk in it["playlists"] and it["key"] in ids]
         steps.append({"op": "playlist", "playlist": title, "keys": members, "ids": [ids.get(k) for k in members]})
     for it in its:
-        if it["kind"] == "video" and it["key"] in ids and it["key"] not in public:
+        if it["kind"] == "video" and it["key"] in ids:
             steps.append({"op": "go_public", "key": it["key"], "id": ids[it["key"]], "status": _status("public")})
     h = hashlib.sha256(json.dumps(steps, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:12]
+    kind = {it["key"]: it["kind"] for it in its}
+    pub = {k for k in public if kind.get(k) == "video"}
+    steps = [s for s in steps if not (s["op"] == "go_public" and s["key"] in pub)]
+    for s in steps:
+        if s["op"] == "metadata" and s["key"] in pub: s["status"] = _status("public")
     return {"hash": h, "steps": steps, "problems": problems, "waiting": waiting}
 
 def _sha(path):

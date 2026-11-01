@@ -116,6 +116,7 @@ def test_already_public_videos_stay_public(its):
     meta = {s["key"]: s for s in p["steps"] if s["op"] == "metadata"}
     assert meta["V1"]["status"]["privacyStatus"] == "public" and meta["V2"]["status"]["privacyStatus"] == "private"
     assert [s["key"] for s in p["steps"] if s["op"] == "go_public"] == ["V2"]
+    assert p["hash"] == yt.plan(SERIES, {"V1": "id1", "V2": "id2", "S01": "id3"}, public={"V1", "V2"}, now=datetime.datetime(2029, 1, 1, tzinfo=datetime.timezone.utc))["hash"]
 
 def test_skipped_ops_run_later(its, tmp_path):
     fake = FakeYT(); st = str(tmp_path / "st.json")

@@ -76,7 +76,7 @@ def test_blog_lists_the_lessons_shorts(tmp_path):
     inp = {"title": "T", "slug": "how-to-start-programming", "focus_keyword": "how to start programming", "seo_title": "How to start programming x",
            "meta_description": "d", "tags": [], "cover_alt": "c", "intro": [para], "sections": [{"heading": "How to start programming", "body": [para]}]}
     r = blog.build(cfg, inp); md = (tmp_path / "blog" / "how-to-start-programming.md").read_text()
-    assert "## Watch the short versions" in md and "- **Start Here** (44 s Short, link after upload, from 0:53 in the full video)" in md
+    assert "## Watch the short versions" in md and "- **Start Here** (44 s Short, coming soon, from 0:53 in the full video)" in md
     assert any("shorts_urls" in m for m in r["todo"])
     inp.update(video_url="https://youtu.be/abcdefghijk", shorts_urls=["https://youtube.com/shorts/AAAAAAAAAAA", "https://youtube.com/shorts/BBBBBBBBBBB"])
     r = blog.build(cfg, inp); h = (tmp_path / "blog" / "how-to-start-programming.html").read_text()
@@ -90,3 +90,10 @@ def test_caption_greeting_is_always_hello_programmers(tmp_path):
     ph = [(c, re.compile(r"(?<!\w)(?:" + "|".join(v) + r")(?!\w)", re.I)) for c, v in cfg["captions"]["phrases"].items() if not c.startswith("_")]
     assert captions.normalise("Hello programmer, welcome back", [], ph) == "Hello programmers, welcome back"
     assert captions.normalise("Hello programmers, welcome back", [], ph) == "Hello programmers, welcome back"
+
+def test_shorts_from_reads_both_clip_note_formats(tmp_path):
+    from ytpipe import blog
+    d = tmp_path / "metadata" / "shorts"; d.mkdir(parents=True)
+    (d / "01.md").write_text("# A\n\n**Clip:** 0:24–1:34 of the final video (69.9 s; the rendered Short is 62.8 s after pause tightening).\n\n**Title:** A\n")
+    (d / "02.md").write_text("# B\n\n**Clip:** 3:29–5:01 of the final video (91.7 s). **Short:** 82 s after tightening pauses.\n\n**Title:** B\n")
+    assert blog.shorts_from({"metadata": str(tmp_path / "metadata")}) == [("A", 24, 63), ("B", 209, 82)]

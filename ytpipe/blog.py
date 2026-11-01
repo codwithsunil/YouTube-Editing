@@ -63,9 +63,9 @@ def shorts_from(P):
     dirs = [os.path.join(P["metadata"], "shorts")] + ([os.path.join(P["shorts"], "metadata")] if P.get("shorts") else [])
     for f in sorted(f for d in dirs for f in glob.glob(os.path.join(d, "*.md"))):
         md = open(f, encoding="utf-8").read(); t = re.search(r"\*\*Title:\*\* (.+)", md)
-        c = re.search(r"\*\*Clip:\*\* (\d+):(\d\d)\D+\d+:\d\d of the final video \(([\d.]+) s\)", md)
-        n = re.search(r"\*\*Short:\*\* ([\d.]+) s", md)                      # the rendered Short's length (pauses tightened)
-        if t: out.append((t.group(1).strip(), int(c.group(1)) * 60 + int(c.group(2)) if c else None, round(float(n.group(1) if n else c.group(3))) if c else None))
+        c = re.search(r"\*\*Clip:\*\* (\d+):(\d\d)\D+\d+:\d\d of the final video \(([\d.]+) s[;)]", md)
+        n = re.search(r"\*\*Short:\*\* ([\d.]+) s|rendered Short is ([\d.]+) s", md)   # the rendered Short's length (pauses tightened)
+        if t: out.append((t.group(1).strip(), int(c.group(1)) * 60 + int(c.group(2)) if c else None, round(float((n.group(1) or n.group(2)) if n else c.group(3))) if c else None))
     return out
 
 def check(inp, words):
@@ -154,7 +154,7 @@ def document(cfg, inp, cover=None):
     if shorts:                                        # the lesson's Shorts: link once uploaded, and where each sits in the full video
         def line(k, title, t0, sec):
             u = su[k] if k < len(su) and su[k] else ""; name = f"[{title}]({u})" if u else f"**{title}**"
-            info = ", ".join(x for x in ((f"{sec} s Short" if sec else "Short") + ("" if u else ", link after upload"),
+            info = ", ".join(x for x in ((f"{sec} s Short" if sec else "Short") + ("" if u else ", coming soon"),
                                          (f"from [{mm(t0)}]({at(t0)}) in the full video" if vid else f"from {mm(t0)} in the full video") if t0 is not None else "") if x)
             return f"- {name} ({info})"
         doc.append(("h2", "Watch the short versions"))

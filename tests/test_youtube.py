@@ -141,3 +141,10 @@ def test_past_time_of_an_already_scheduled_short_does_not_block(its, tmp_path):
 def test_short_going_public_on_schedule_keeps_the_plan_hash(its):
     ids = {"V1": "id1", "V2": "id2", "S01": "id3"}; now = datetime.datetime(2029, 1, 1, tzinfo=datetime.timezone.utc)
     assert yt.plan(SERIES, ids, public={"V1"}, now=now)["hash"] == yt.plan(SERIES, ids, public={"V1", "S01"}, now=now)["hash"]
+
+def test_links_set_video_url_and_the_youtube_publish_date(its, tmp_path, monkeypatch):
+    for l in ("l1", "l2"):
+        (tmp_path / "lessons" / l / "metadata").mkdir(parents=True); (tmp_path / "lessons" / l / "metadata" / "blog_input.json").write_text("{}")
+    yt.links(SERIES, {"V1": "id1", "V2": "id2", "S01": "id3"}, root=str(tmp_path), published={"V1": "2026-10-31"})
+    a = json.loads((tmp_path / "lessons/l1/metadata/blog_input.json").read_text()); b = json.loads((tmp_path / "lessons/l2/metadata/blog_input.json").read_text())
+    assert a == {"video_url": "https://youtu.be/id1", "upload_date": "2026-10-31"} and b == {"video_url": "https://youtu.be/id2"}

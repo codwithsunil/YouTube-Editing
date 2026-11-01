@@ -325,16 +325,26 @@ def apply(p, yt, state_path, approve, skip=()):
         done[k] = sig(s); save()
     return yt.units
 
-def links(series, ids, root="."):
-    """youtube_links.md for you, and video_url in each lesson's blog_input.json (Shorts are added after their dates)."""
+def published_dates(yt, ids):
+    """{key: 'YYYY-MM-DD'} for the videos that are public: the date YouTube reports them published."""
+    out, inv, vals = {}, {v: k for k, v in ids.items()}, list(ids.values())
+    for i in range(0, len(vals), 50):
+        for v in yt.call("GET", "/videos", {"part": "snippet,status", "id": ",".join(vals[i:i + 50])}).get("items", []):
+            if v["status"]["privacyStatus"] == "public": out[inv[v["id"]]] = v["snippet"]["publishedAt"][:10]
+    return out
+
+def links(series, ids, root=".", published=None):
+    """youtube_links.md for you, and video_url (plus upload_date once public: the article's VideoObject date) in each
+    lesson's blog_input.json. Shorts are added to the articles after their dates."""
     rows, its = [], items(series, root)
     for it in its:
         vid = ids.get(it["key"]); url = (f"https://youtube.com/shorts/{vid}" if it["kind"] == "short" else f"https://youtu.be/{vid}") if vid else "(not matched)"
         rows.append(f"- {it['key']} {it['title']}: {url}" + (f"  (public {publish_at(series, it['day'])})" if it["kind"] == "short" else ""))
         if it["kind"] == "video" and vid:
             bi = os.path.join(root, "lessons", it["lesson"], "metadata", "blog_input.json"); js = json.load(open(bi, encoding="utf-8"))
-            if js.get("video_url") != f"https://youtu.be/{vid}":
-                js["video_url"] = f"https://youtu.be/{vid}"; json.dump(js, open(bi, "w", encoding="utf-8"), indent=1, ensure_ascii=False)
+            want = {"video_url": f"https://youtu.be/{vid}", **({"upload_date": published[it["key"]]} if (published or {}).get(it["key"]) else {})}
+            if any(js.get(k) != v for k, v in want.items()):
+                js.update(want); json.dump(js, open(bi, "w", encoding="utf-8"), indent=1, ensure_ascii=False)
     return "\n".join(["# YouTube links", "", *rows]) + "\n"
 
 # ---------------------------------------------------------------- CLI
@@ -372,7 +382,7 @@ def main(argv=None):
         elif a.cmd == "apply":
             yt = Client.from_keychain(); units = apply(plan(S, ids(), partial=a.partial, public=public_now(yt, ids())), yt, state_path, a.approve, skip=[x for x in a.skip.split(",") if x]); print(f"done ({units} quota units used)")
         elif a.cmd == "links":
-            out = os.path.join(d, "youtube_links.md"); open(out, "w", encoding="utf-8").write(links(S, ids())); print(out)
+            out = os.path.join(d, "youtube_links.md"); open(out, "w", encoding="utf-8").write(links(S, ids(), published=published_dates(Client.from_keychain(), ids()))); print(out)
     except YTError as e:
         sys.exit(f"youtube: {e}")
 

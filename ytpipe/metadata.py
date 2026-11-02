@@ -106,8 +106,12 @@ def build(cfg, ch, inp):
     hashtags = [h if h.startswith("#") else "#" + h for h in inp["hashtags"]][: cfg["youtube"]["hashtags_max"]]
     links = cfg["youtube"]["links"]
     res = "\n".join(f"- {r['label']}: {links.get(r['link'], r['link'])}" for r in inp.get("resources", []))
+    # the first resource (the lesson's article) also goes right under the intro: YouTube shows only the first lines
+    # before "...more", and viewers who prefer to read should find the article without expanding (user, 2026-11-02)
+    top = inp.get("resources", [])[:1]
+    top_line = f"{top[0]['label']}: {links.get(top[0]['link'], top[0]['link'])}" if top else ""
     desc = "\n\n".join(x for x in [
-        inp["intro"], "**What you will learn**\n" + "\n".join(f"- {x}" for x in inp["learn"]),
+        inp["intro"], top_line, "**What you will learn**\n" + "\n".join(f"- {x}" for x in inp["learn"]),
         "**Concepts covered**\n" + "\n".join(f"- {x}" for x in inp["concepts"]),
         "**Examples in this video**\n" + "\n".join(f"- {x}" for x in inp["examples"]),
         "**Chapters**\n" + chap,

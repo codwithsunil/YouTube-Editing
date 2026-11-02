@@ -43,3 +43,16 @@ def test_verdicts_follow_their_text_when_ids_shift():
     v = factcheck.verdicts(cl, fc)
     assert v["c002"]["text"] == "4 + 5 = 9" and v["c003"]["text"] == "11 % 2 = 1" and "c001" not in v
     assert factcheck.check(cl, fc) == ["c001 has no verdict: a new line is 2 things"]
+
+def test_article_link_sits_right_under_the_intro(tmp_path):
+    cfg = make_cfg(tmp_path)
+    inp = {"intro": "Is video mein if else flowchart samjhenge", "learn": ["x"], "concepts": ["y"], "examples": ["z"], "cta": "Subscribe",
+           "hashtags": ["a"], "tags": ["a", "b", "c", "d", "e"], "pinned_comment": "?", "recommended": 1,
+           "titles": [{"angle": "s", "title": "If Else Flowchart: Even or Odd Example"}], "recommendation_reason": "r",
+           "resources": [{"label": "Read the full article", "link": "https://example.test/post/"}, {"label": "Course page", "link": "https://example.test/hub/"}]}
+    metadata.build(cfg, [(0, "a"), (40, "b"), (90, "c")], inp)
+    desc = open(tmp_path / "out" / "metadata" / "youtube_description.md", encoding="utf-8").read() if (tmp_path / "out").exists() else \
+           open(cfg["paths"]["metadata"] + "/youtube_description.md", encoding="utf-8").read()
+    blocks = desc.split("\n\n")
+    assert blocks[1] == "Read the full article: https://example.test/post/"                 # visible before "...more"
+    assert "**Resources**\n- Read the full article: https://example.test/post/" in desc       # and still in the list

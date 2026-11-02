@@ -85,7 +85,7 @@ def music_plan(cfg, segs, chapters, pauses, intro_s=8.0, swell_s=4.0, outro_s=6.
             near = [p for p in pauses if p[0] <= c + 0.5 and p[1] >= c - 3.0]   # the pause that opens the chapter
             p = min(near, key=lambda p: abs((p[0] + p[1]) / 2 - c)) if near else None; m = (p[0] + p[1]) / 2 if p else c
             out.append((m - h, m + h, (m - h) % room, [(m - h, None), (m, L), (m + h, None)]))
-    if "outro" in M["placement"]:
+    if "outro" in M["placement"] and not cfg.get("end_card", {}).get("enabled"):   # the end card carries the track's ending
         out.append((z - outro_s, z, n - outro_s - 0.5, [(z - outro_s, None), (z - outro_s + 2.0, L), (z, L)]))
     return out
 

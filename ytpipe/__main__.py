@@ -15,6 +15,7 @@ Stages (in workflow order; each is restartable and records a checkpoint in <less
               settings -> full_video/sample/sample.mp4, after 'timeline' approval (review it, then: approve preview)
   preview     render selected segments (--segments 0,3,7) after 'timeline' approval
   render      full video after 'full_render' approval -> full_video/<lesson>.mp4 (+ QA)
+  end-card    rebuild the 'Happy Coding!' end card (render appends it; e.g. after setting end_card.next)
   captions    transcripts/<lesson>_hinglish.srt from transcripts/transcript.txt (+ review list)
   factcheck   claims in the cleaned transcript -> reports/fact_check_brief.md; Claude verifies each against sources into
               metadata/fact_check.json; passes only when every claim has a verdict and every error a fix (cut or note).
@@ -134,7 +135,13 @@ def main(argv=None):
         if s == "render":
             res = qa.run_full(cfg, r["file"], r["edl"], off(), an(), r["geometry"], os.path.join(P["full_video"], "work"))
             print(json.dumps(res["findings"], indent=1))
+            if cfg["end_card"]["enabled"]:                   # user rule 2026-11-02: every video ends on "Happy Coding!"
+                from . import endcard
+                e = endcard.append(cfg, r["file"], fresh=True); print("end card appended:", e["file"], f"{e['duration_s']} s (without it: {e['without_card']})")
         else: print(r)
+    elif s == "end-card":                                       # rebuild the card (e.g. a new "next") from _parts/<id>_no_end_card.mp4
+        from . import endcard
+        e = endcard.append(cfg, os.path.join(P["full_video"], f"{cfg['project']['lesson_id']}.mp4")); print("end card:", e["file"], f"{e['duration_s']} s")
     elif s == "captions":
         env = np.load(os.path.join(A, "speech_env.npy")) if os.path.exists(os.path.join(A, "speech_env.npy")) else None
         srt, cues, rev = captions.build(cfg, transcript.parse(os.path.join(P["transcripts"], "transcript.txt")), edl()["segments"], env)

@@ -154,6 +154,13 @@ already delivered and reports what it finds, but changes a delivered video only 
 - **auto:** each chunk has a time limit (5× its length, at least 90 s); past it, the chunk is decoded again once, greedily, with capped output (`transcript.decode_chunk`). Progress is saved after every chunk, so a rerun resumes.
 - **Claude:** an outside watchdog must measure progress from each restart (a stale start time killed every retry at once). The repair pass after the last chunk writes no progress file, so it is not watched.
 
+### C22. Every video ends on "Happy Coding!"
+- **Your rule (2026-11-02):** always end with "Happy Coding!", music at the end, and "Keep in touch for more interesting videos"; trim the last seconds where you lean to stop the camera.
+- **auto:** `render` appends an 8 s end card after QA (`ytpipe/endcard.py`): the last frame blurred and darkened, "Happy Coding!", the keep-in-touch line, "NEXT <topic>" when `end_card.next` is set for the lesson, and the site address (from the WordPress settings). The music is the track's own ending, faded out over the last 2 s; the outro music bed under the voice is skipped so the ending doesn't play twice.
+- **auto:** the text sits in the upper middle, so YouTube end-screen elements (Subscribe, watch-next; allowed in the last 5–20 s) fit below it. Add them in Studio: the API can't.
+- **Claude:** ends the timeline right after the spoken goodbye, in its pause, and sets `end_card.next` from what you announce. The final without the card stays in `full_video/_parts/`; `python -m ytpipe end-card` rebuilds the card without re-rendering.
+- **Seen:** joining the card by stream copy with a different video time base made the video stop 8 s before the audio; the card is now re-timed to the main video's time base, and the join is checked (video and audio lengths) before the final is replaced.
+
 ### C15. Re-renders
 - **Claude:**
   - never overwrites a final: the previous one is renamed with a suffix that says why (`_v3_pen_late`)

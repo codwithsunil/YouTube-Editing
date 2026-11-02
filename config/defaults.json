@@ -104,7 +104,9 @@
     "enabled": true,
     "phrases": {
       "_help": "Fixed wording in captions (canonical: [regex variants]); the user's rule 2026-10-27: the greeting is always 'Hello programmers'.",
-      "Hello programmers": ["hello,? programmer(?!s)"]
+      "Hello programmers": [
+        "hello,? programmer(?!s)"
+      ]
     },
     "format": [
       "srt"
@@ -314,5 +316,18 @@
   },
   "factcheck": {
     "required": true
+  },
+  "end_card": {
+    "_note": "User rule 2026-11-02: every video ends on 'Happy Coding!' (ytpipe/endcard.py). 'next' = the next video's topic, set per lesson (omitted when null); 'site' falls back to wordpress.site_url's host. The outro music bed is skipped while the card is on: the card carries the track's ending.",
+    "enabled": true,
+    "duration_s": 8.0,
+    "title": [
+      "Happy ",
+      "Coding!"
+    ],
+    "line": "Keep in touch for more interesting videos",
+    "next": null,
+    "site": null,
+    "music_lufs": -20.0
   }
 }

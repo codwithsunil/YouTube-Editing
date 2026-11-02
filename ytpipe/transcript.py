@@ -29,6 +29,23 @@ def speech_chunks(env, thr, max_len=28.0, join_gap=0.6, pad=0.25):
     T = len(env) * 0.01
     return [(round(max(0.0, a - pad), 2), round(min(T, b + pad), 2)) for a, b in out]
 
+def decode_chunk(model, audio, t, limit_s, log=print, clock=time.time):
+    """One chunk's segments. The normal decode falls back to sampled temperatures, and one such retry can run away
+    (lesson07: an hour on a 28 s chunk that decodes in 89 s on its own). Past limit_s the chunk is decoded again,
+    once, in a strict mode: greedy only, no silence re-seeking, capped output per window."""
+    t0 = clock(); out = []
+    segs, _ = model.transcribe(audio, language=t["language"], word_timestamps=True, vad_filter=False, condition_on_previous_text=False,
+                               temperature=t.get("temperatures", [0.0, 0.2, 0.4]), hallucination_silence_threshold=2.0)
+    for s in segs:
+        out.append(s)
+        if clock() - t0 > limit_s:
+            log(f"chunk over {limit_s:.0f} s: decoding it again in strict mode"); break
+    else:
+        return out
+    segs, _ = model.transcribe(audio, language=t["language"], word_timestamps=True, vad_filter=False, condition_on_previous_text=False,
+                               temperature=0.0, max_new_tokens=200, no_repeat_ngram_size=6)
+    return list(segs)
+
 def transcribe_chunks(cfg, audio_path, out_json, env, log=print):
     """Chunked faster-whisper over the speech only: one stuck window cannot stall the lecture, retries are limited, and
     progress is saved after each chunk (<out>.partial.json; a rerun resumes)."""
@@ -39,10 +56,8 @@ def transcribe_chunks(cfg, audio_path, out_json, env, log=print):
     x = media.audio(audio_path, sr=16000); model = WhisperModel(t["model"], device="cpu", compute_type=t["compute_type"]); t0 = time.time()
     for n, (a, b) in enumerate(chunks):
         if n < done["done"]: continue
-        segs, _ = model.transcribe(x[int(a * 16000):int(b * 16000)], language=t["language"], word_timestamps=True, vad_filter=False,
-                                   condition_on_previous_text=False, temperature=t.get("temperatures", [0.0, 0.2, 0.4]),
-                                   hallucination_silence_threshold=2.0)
-        for s in segs:
+        got = decode_chunk(model, x[int(a * 16000):int(b * 16000)], t, limit_s=max(90.0, 5 * (b - a)), log=log)
+        for s in got:
             done["segments"].append({"start": round(a + s.start, 2), "end": round(a + s.end, 2), "text": s.text, "chunk": n,
                                      "words": [[round(a + w.start, 2), round(a + w.end, 2), w.word, w.probability] for w in (s.words or [])]})
         done["done"] = n + 1; json.dump(done, open(part, "w", encoding="utf-8"), ensure_ascii=False)

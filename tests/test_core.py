@@ -97,3 +97,17 @@ def test_shorts_from_reads_both_clip_note_formats(tmp_path):
     (d / "01.md").write_text("# A\n\n**Clip:** 0:24–1:34 of the final video (69.9 s; the rendered Short is 62.8 s after pause tightening).\n\n**Title:** A\n")
     (d / "02.md").write_text("# B\n\n**Clip:** 3:29–5:01 of the final video (91.7 s). **Short:** 82 s after tightening pauses.\n\n**Title:** B\n")
     assert blog.shorts_from({"metadata": str(tmp_path / "metadata")}) == [("A", 24, 63), ("B", 209, 82)]
+
+def test_runaway_chunk_is_decoded_again_in_strict_mode():
+    from ytpipe import transcript
+    class Seg:
+        def __init__(self, txt): self.text, self.start, self.end, self.words = txt, 0.0, 1.0, []
+    class Model:
+        def __init__(self): self.calls = []
+        def transcribe(self, audio, **kw):
+            self.calls.append(kw)
+            if kw["temperature"] == 0.0: return iter([Seg("clean")]), None
+            return (Seg("loop") for _ in range(10 ** 6)), None                     # a retry that never ends
+    clock = iter(range(0, 10 ** 6, 10)).__next__                                  # 10 s per segment
+    m = Model(); out = transcript.decode_chunk(m, None, {"language": "hi"}, limit_s=90, log=lambda *_: None, clock=clock)
+    assert [s.text for s in out] == ["clean"] and m.calls[1]["temperature"] == 0.0 and "hallucination_silence_threshold" not in m.calls[1]

@@ -135,6 +135,25 @@ already delivered and reports what it finds, but changes a delivered video only 
 - **Your rule (2026-10-27): follow the hands.** The camera shows when you write: the pen hand is down on the tablet while you write, and both hands come up to gesture while you explain. Claude places the start of every hold where the hands leave the tablet, not where the explaining sentence starts. It checks the hand stretches against the ink (a pen lift should match a gap in the ink) using 2 fps hand crops and the `ink` log. Lesson05: "isko resolve karne se pehle… AND" starts at face 276.7, but the hand kept writing the Grade A arrow and box until 290.5, so the hold starts at 291.4. Freezing at 276.7 left the desktop still while the hand was visibly drawing. Hand motion alone can't set the lecture offset (C1), but it does mark where the writing starts and stops within a section.
 - **Seen also:** writing that follows its words by up to 15 s, as in lesson05's notes ("80–100 → A" written after the rule is spoken). Small skips at moments when the pen is still bring each note within 1–4 s of its word. Skips are kept small enough that the next step never shows before it is spoken.
 
+### C18. The face and desktop recordings are from different takes
+- **Seen:** Lesson 07: the first pair (and a second desktop file) were the same topic recorded at another time. The sentences were similar but not the same ("bachche ko school chhodta hoon" on one, "gym ke baad breakfast" on the other), and the audio would not sync.
+- **Claude:** before editing, compares the same moments in both recordings word by word (20 s windows at the start, middle and end, at the offset found). Different sentences mean different takes: stop and ask for the matching file. Never edit a pair whose words differ.
+- **Clue:** file times that don't overlap (camera creation time vs. desktop file time minus its length).
+
+### C19. The camera was in Slo-mo
+- **Seen:** Lesson 07: the iPhone was on SLO-MO (next to VIDEO): 120 fps, and the Photos app played the middle slowed down.
+- **auto/Claude:** the file itself is real-time (audio and video lengths match). It is used as is and rendered at 30 fps; no repair is needed, and the slowed playback in Photos does not matter. `inspect` warns about the frame rate.
+- **You:** check that the camera says VIDEO and Settings → Camera → Record Video = 1080p at 30 fps.
+
+### C20. Two different microphones (clip-on + computer)
+- **Seen:** Lesson 07, the first recording with audio in OBS. The windows agreed within 11.5 ms (52.088 / 52.082 / 52.077 s), but each window's peak score (1.2–1.5) was below the old 2.0 threshold, so sync asked for input.
+- **auto:** a strong coarse match plus start/middle/end windows within half a frame of each other counts as verified (`sync.audio_estimate`).
+
+### C21. The transcription hangs on one chunk
+- **Seen:** Lesson 07: an hour on a 28 s chunk that decodes in 89 s on its own, twice. A sampled-temperature retry ran away.
+- **auto:** each chunk has a time limit (5× its length, at least 90 s); past it, the chunk is decoded again once, greedily, with capped output (`transcript.decode_chunk`). Progress is saved after every chunk, so a rerun resumes.
+- **Claude:** an outside watchdog must measure progress from each restart (a stale start time killed every retry at once). The repair pass after the last chunk writes no progress file, so it is not watched.
+
 ### C15. Re-renders
 - **Claude:**
   - never overwrites a final: the previous one is renamed with a suffix that says why (`_v3_pen_late`)
@@ -144,6 +163,7 @@ already delivered and reports what it finds, but changes a delivered video only 
 
 ## What you can do while recording
 - Add a mic track to OBS: sync then becomes automatic.
+- iPhone on **VIDEO**, not SLO-MO; 1080p at 30 fps.
 - When you fumble, say clearly "**isko cut kar dena**" and restart the sentence from its beginning.
 - For a break: "**pause here, editor**" … "**start now**".
 - Write while you say the word (it makes sync anchors), and don't click past the last slide.

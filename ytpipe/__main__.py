@@ -15,6 +15,7 @@ Stages (in workflow order; each is restartable and records a checkpoint in <less
               settings -> full_video/sample/sample.mp4, after 'timeline' approval (review it, then: approve preview)
   preview     render selected segments (--segments 0,3,7) after 'timeline' approval
   render      full video after 'full_render' approval -> full_video/<lesson>.mp4 (+ QA)
+  repeats     phrases said twice in the flow (doubled, 'ya' restatement, echo, false start, reworded, filler) -> reports/repeats.md
   end-card    rebuild the 'Happy Coding!' end card (render appends it; e.g. after setting end_card.next)
   captions    transcripts/<lesson>_hinglish.srt from transcripts/transcript.txt (+ review list)
   factcheck   claims in the cleaned transcript -> reports/fact_check_brief.md; Claude verifies each against sources into
@@ -139,6 +140,10 @@ def main(argv=None):
                 from . import endcard
                 e = endcard.append(cfg, r["file"], fresh=True); print("end card appended:", e["file"], f"{e['duration_s']} s (without it: {e['without_card']})")
         else: print(r)
+    elif s == "repeats":                                        # phrases said twice in the flow (proposals for the cut list)
+        from . import repeats
+        found, rp = repeats.run(cfg); print(len(found), "repeated phrase(s) to review ->", rp)
+        for f in found: print(f"  {f['pattern']:12s} face {f['face']:.1f}: {f['repeated'][:80]}")
     elif s == "end-card":                                       # rebuild the card (e.g. a new "next") from _parts/<id>_no_end_card.mp4
         from . import endcard
         e = endcard.append(cfg, os.path.join(P["full_video"], f"{cfg['project']['lesson_id']}.mp4")); print("end card:", e["file"], f"{e['duration_s']} s")

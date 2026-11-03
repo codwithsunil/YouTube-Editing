@@ -257,7 +257,7 @@
       "presenter_zoom": "none beyond the approved crops (B 608x1080 -> 1080x1920; A rectangle)",
       "hook_title": "optional, max 2 s at the start, never over the face, must restate the spoken hook; off by default",
       "guided_split": {
-        "enabled": true,
+        "enabled": false,
         "desktop_box": [
           1080,
           900
@@ -266,7 +266,8 @@
         "min_crop_source_w": 900,
         "min_shot_s": 4.0,
         "signals": "new pen ink of the line + slide words named by the line (Windows OCR, offline)",
-        "reframe": "hard cut in a measured pause; presenter rectangle fixed per part"
+        "reframe": "hard cut in a measured pause; presenter rectangle fixed per part",
+        "_mac": "off on this Mac copy: its slide-text OCR is Windows-only (ytpipe/ocr_win.ps1); see MAC_SETUP.md. lesson08's Shorts render stopped on 'powershell' not found (2026-11-03)."
       }
     }
   },

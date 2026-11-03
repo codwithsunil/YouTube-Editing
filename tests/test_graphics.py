@@ -56,3 +56,12 @@ def test_thumbnail_text_behind_the_shoulder_fails_qa(tmp_path):
                       {"qa": "text", "text": "ODD", "x": 300, "y": 560, "w": 200, "h": 78},
                       {"qa": "text", "text": "EVEN", "x": 700, "y": 560, "w": 180, "h": 78}]}
     assert [x.split("'")[1] for x in thumbs_v2.covered(info, p)] == ["ODD"]
+
+def test_chip_rows_are_checked_before_rendering(tmp_path):
+    import pytest
+    from ytpipe import graphics
+    from tests.test_core import make_cfg
+    cfg = make_cfg(tmp_path); g = {"bar": [0, 0, 600, 106]}
+    graphics.check_chips(cfg, g, [[1.0, "Row", ["a", "b"], 1]])
+    with pytest.raises(ValueError, match="2.0 s"):
+        graphics.check_chips(cfg, g, [[2.0, "A long lead label", ["first item", "second item", "third item", "fourth item"], 2]])

@@ -44,6 +44,7 @@ def build(cfg, plan, analysis, meta, out_mp4, only=None, gate="full_render", wd=
     A, wd = cfg["paths"], wd or os.path.join(cfg["paths"]["full_video"], "work"); os.makedirs(wd, exist_ok=True)
     masks = list(np.load(os.path.join(A["analysis"], "content_masks.npz")).values())
     g = layout.geometry(cfg, analysis["slide_area"], masks, analysis.get("counter_box")); L = layout.static_layers(cfg, g, os.path.join(wd, "layers"))
+    if plan.get("chips"): graphics.check_chips(cfg, g, plan["chips"])        # fail before rendering, not minutes into it
     off = plan["offset_s"]; segs = plan["segments"]; ft = None
     base = plan.get("parent_segments", segs); secs = sync.sections(cfg)
     if secs: segs = sync.split_sections(segs, secs)

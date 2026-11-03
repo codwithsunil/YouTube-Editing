@@ -34,8 +34,10 @@ def decode_chunk(model, audio, t, limit_s, log=print, clock=time.time):
     (lesson07: an hour on a 28 s chunk that decodes in 89 s on its own). Past limit_s the chunk is decoded again,
     once, in a strict mode: greedy only, no silence re-seeking, capped output per window."""
     t0 = clock(); out = []
+    # no hallucination_silence_threshold: it discards what it decodes and re-seeks, so a stretch can loop without ever
+    # yielding a segment (lesson08: 27 min on one chunk, past this guard). drop_hallucinations() cleans up afterwards.
     segs, _ = model.transcribe(audio, language=t["language"], word_timestamps=True, vad_filter=False, condition_on_previous_text=False,
-                               temperature=t.get("temperatures", [0.0, 0.2, 0.4]), hallucination_silence_threshold=2.0)
+                               temperature=t.get("temperatures", [0.0, 0.2, 0.4]), max_new_tokens=220)
     for s in segs:
         out.append(s)
         if clock() - t0 > limit_s:

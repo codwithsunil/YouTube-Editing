@@ -161,6 +161,13 @@ already delivered and reports what it finds, but changes a delivered video only 
 - **Claude:** ends the timeline right after the spoken goodbye, in its pause, and sets `end_card.next` from what you announce. The final without the card stays in `full_video/_parts/`; `python -m ytpipe end-card` rebuilds the card without re-rendering.
 - **Seen:** joining the card by stream copy with a different video time base made the video stop 8 s before the audio; the card is now re-timed to the main video's time base, and the join is checked (video and audio lengths) before the final is replaced.
 
+### C23. Phrases said twice in the flow of speech
+- **Your rule (2026-11-03, lesson08):** "remove repetitive phrases". Reference: "To agar is problem ko, **ya is case ke liye**, agar main sochoon".
+- **auto:** `python -m ytpipe repeats` (after transcript.txt) lists them in `reports/repeats.md`: **doubled** ("print kya karna hai? Print kya karna hai ji?"), **restatement** with "ya" ("ek chhota sa example hai, ya ek bada task hai, ya ek problem hai"), **echo** of a question before its answer, **false start** ("to main kind of / isko main kind of string…"), **reworded** (one word twice in one breath: "initialise kar diya… initialise ho gaya"), **filler** restart ("par ye jo hai, ye boloon ki…").
+- **Claude:** for each, re-decodes the stretch with word timestamps (Hindi + English), cuts between the nearest pauses so the sentence still reads, and lists every cut in the cut list (before / removed / after). Lesson08: 8 cuts, 34 s; one quiet "theek hai ji" was left because its position was uncertain.
+- **Claude, after the render:** checks every join by transcribing about 2 s either side in the rendered video (Hindi and English). Lesson08: 2 of 8 joins still had a stray word ("ya ek") or a fragment ("ye b…") because the word timing was a few hundredths off; the cut points were moved to the level dip between the words and the video re-rendered.
+- **Kept:** the walkthrough's deliberate repetition ("loop counter ki value kya hogi? 1 … 2"), worked examples ("5 into 1, 5 into 2"), the end summary, and "theek hai ji" inside sentences.
+
 ### C15. Re-renders
 - **Claude:**
   - never overwrites a final: the previous one is renamed with a suffix that says why (`_v3_pen_late`)

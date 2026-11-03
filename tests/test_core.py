@@ -110,4 +110,5 @@ def test_runaway_chunk_is_decoded_again_in_strict_mode():
             return (Seg("loop") for _ in range(10 ** 6)), None                     # a retry that never ends
     clock = iter(range(0, 10 ** 6, 10)).__next__                                  # 10 s per segment
     m = Model(); out = transcript.decode_chunk(m, None, {"language": "hi"}, limit_s=90, log=lambda *_: None, clock=clock)
-    assert [s.text for s in out] == ["clean"] and m.calls[1]["temperature"] == 0.0 and "hallucination_silence_threshold" not in m.calls[1]
+    assert [s.text for s in out] == ["clean"] and m.calls[1]["temperature"] == 0.0
+    assert all("hallucination_silence_threshold" not in c for c in m.calls)       # it can loop without yielding (lesson08)

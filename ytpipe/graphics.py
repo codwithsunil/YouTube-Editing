@@ -33,6 +33,15 @@ def bar_state(cfg, wh, lead, chips, active):
         raise ValueError(f"chip row '{lead}: {chips}' is {x}px, wider than the bar ({wh[0]}px): shorten the labels")
     return np.asarray(im).astype(np.float32)
 
+def check_chips(cfg, g, chips):
+    """Every chip state must fit the bar: checked before rendering starts, not minutes into it (a highlighted chip is a
+    little wider, so every step of every row is drawn once). Raises ValueError naming the rows that don't fit."""
+    wh = (g["bar"][2], g["bar"][3]); bad = []
+    for c in chips:
+        try: bar_state(cfg, wh, c[1], c[2], c[3])
+        except ValueError as e: bad.append(f"{c[0]:.1f} s: {e}")
+    if bad: raise ValueError("chips too wide, shorten the labels before rendering:\n" + "\n".join(bad))
+
 def bar_video(cfg, g, timeline, fa, fb, path, fade=0.25):
     fps = cfg["output"]["fps"]; wh = (g["bar"][2], g["bar"][3]); n = int(np.ceil((fb - fa) * fps)) + 2; cache = {}
     def frame(st):

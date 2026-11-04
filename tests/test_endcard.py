@@ -26,11 +26,11 @@ def cfg_for(tmp_path, **card):
 def test_layers_and_site(tmp_path):
     cfg = cfg_for(tmp_path, next="Pattern printing with loops")
     ps = endcard.layers(cfg, str(tmp_path / "l"))
-    assert len(ps) == 3 and all(Image.open(p).size == (1920, 1080) for p in ps)
-    assert Image.open(ps[2]).getbbox() is not None                         # NEXT row and site drawn
+    assert len(ps) == 4 and all(Image.open(p).size == (1920, 1080) for p in ps)
+    assert Image.open(ps[3]).getbbox() is not None                         # NEXT row and site drawn
     assert endcard.site(cfg) == "example.test"
     cfg["end_card"]["next"] = None; cfg["wordpress"]["site_url"] = None
-    assert Image.open(endcard.layers(cfg, str(tmp_path / "m"))[2]).getbbox() is None     # nothing invented
+    assert Image.open(endcard.layers(cfg, str(tmp_path / "m"))[3]).getbbox() is None     # nothing invented
 
 def test_append_keeps_the_part_and_matches_lengths(tmp_path):
     cfg = cfg_for(tmp_path); final = os.path.join(cfg["paths"]["full_video"], f"{cfg['project']['lesson_id']}.mp4")
@@ -61,3 +61,18 @@ def test_no_outro_bed_while_the_card_is_on(tmp_path):
     assert audio.music_plan(cfg, segs, [], []) == []
     cfg["end_card"]["enabled"] = False
     assert len(audio.music_plan(cfg, segs, [], [])) == 1
+
+def test_every_card_has_motivational_code(tmp_path):
+    """User rule 2026-11-04: the card always shares a motivational code line; the lesson's own, else a default."""
+    cfg = cfg_for(tmp_path)
+    assert endcard.motto(cfg)["code"]                                      # a default from end_card.mottos
+    cfg["end_card"]["motto"] = {"comment": "// keep going", "code": "while (learning) { addOneMoreStar(); }"}
+    assert endcard.motto(cfg)["code"].startswith("while")
+    cols = {t: c for t, c in endcard.code_tokens(cfg["end_card"]["motto"]["code"], cfg["graphics"]["palette"])}
+    assert cols["while"] != cols["learning"] and cols["addOneMoreStar"] != cols["learning"]
+    assert len(endcard.layers(cfg, str(tmp_path / "layers"))) == 4
+    cfg["end_card"]["motto"]["code"] = "x" * 200
+    try:
+        endcard.layers(cfg, str(tmp_path / "layers2")); assert False, "too long should refuse"
+    except ValueError:
+        pass

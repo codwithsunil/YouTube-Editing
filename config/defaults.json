@@ -98,7 +98,8 @@
     },
     "font_black": "assets/fonts/Poppins-Black.ttf",
     "font_bold": "assets/fonts/Poppins-Bold.ttf",
-    "font_semibold": "assets/fonts/Poppins-SemiBold.ttf"
+    "font_semibold": "assets/fonts/Poppins-SemiBold.ttf",
+    "font_mono": "assets/fonts/JetBrainsMono-wght.ttf"
   },
   "captions": {
     "enabled": true,
@@ -319,7 +320,7 @@
     "required": true
   },
   "end_card": {
-    "_note": "User rule 2026-11-02: every video ends on 'Happy Coding!' (ytpipe/endcard.py). 'next' = the next video's topic, set per lesson (omitted when null); 'site' falls back to wordpress.site_url's host. The outro music bed is skipped while the card is on: the card carries the track's ending.",
+    "_note": "User rule 2026-11-02: every video ends on 'Happy Coding!' (ytpipe/endcard.py). 'next' = the next video's topic, set per lesson (omitted when null); 'site' falls back to wordpress.site_url's host. The outro music bed is skipped while the card is on: the card carries the track's ending. Motivational code (user rule 2026-11-04): 'motto' {comment, code} per lesson, written for the video's topic; else 'mottos' by lesson number.",
     "enabled": true,
     "duration_s": 8.0,
     "title": [
@@ -329,6 +330,33 @@
     "line": "Keep in touch for more interesting videos",
     "next": null,
     "site": null,
-    "music_lufs": -20.0
+    "music_lufs": -20.0,
+    "motto": null,
+    "mottos": [
+      {
+        "comment": "// every expert was once a beginner",
+        "code": "while (!expert) { practice(); }"
+      },
+      {
+        "comment": "// stuck? that is part of the loop",
+        "code": "if (stuck) { breakItDown(); }"
+      },
+      {
+        "comment": "// mistakes are how we learn",
+        "code": "try { code(); } catch (Exception e) { learn(e); }"
+      },
+      {
+        "comment": "// one small step every day",
+        "code": "for (day = 1; ; day++) { learnSomething(); }"
+      },
+      {
+        "comment": "// keep going",
+        "code": "do { practice(); } while (!confident);"
+      },
+      {
+        "comment": "// think first, then code",
+        "code": "if (confused) { drawTheFlowchart(); }"
+      }
+    ]
   }
 }

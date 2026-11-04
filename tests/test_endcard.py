@@ -26,11 +26,11 @@ def cfg_for(tmp_path, **card):
 def test_layers_and_site(tmp_path):
     cfg = cfg_for(tmp_path, next="Pattern printing with loops")
     ps = endcard.layers(cfg, str(tmp_path / "l"))
-    assert len(ps) == 3 and all(Image.open(p).size == (1920, 1080) for p in ps)
-    assert Image.open(ps[2]).getbbox() is not None                         # NEXT row and site drawn
+    assert len(ps) == 4 and all(Image.open(p).size == (1920, 1080) for p in ps)
+    assert Image.open(ps[3]).getbbox() is not None                         # NEXT row and site drawn
     assert endcard.site(cfg) == "example.test"
     cfg["end_card"]["next"] = None; cfg["wordpress"]["site_url"] = None
-    assert Image.open(endcard.layers(cfg, str(tmp_path / "m"))[2]).getbbox() is None     # nothing invented
+    assert Image.open(endcard.layers(cfg, str(tmp_path / "m"))[3]).getbbox() is None     # nothing invented
 
 def test_append_keeps_the_part_and_matches_lengths(tmp_path):
     cfg = cfg_for(tmp_path); final = os.path.join(cfg["paths"]["full_video"], f"{cfg['project']['lesson_id']}.mp4")
@@ -61,3 +61,16 @@ def test_no_outro_bed_while_the_card_is_on(tmp_path):
     assert audio.music_plan(cfg, segs, [], []) == []
     cfg["end_card"]["enabled"] = False
     assert len(audio.music_plan(cfg, segs, [], [])) == 1
+
+def test_every_card_has_a_motivational_quote(tmp_path):
+    """User rule 2026-11-04: the card always shares a motivational quote; the lesson's own, else a sourced default."""
+    cfg = cfg_for(tmp_path)
+    q = endcard.quote(cfg); assert q["text"] and q["author"] and q["source"]
+    cfg["end_card"]["quote"] = {"text": "Talk is cheap. Show me the code.", "author": "Linus Torvalds", "source": "LKML 2000"}
+    assert endcard.quote(cfg)["author"] == "Linus Torvalds"
+    assert Image.open(endcard.layers(cfg, str(tmp_path / "layers"))[2]).getbbox() is not None
+    cfg["end_card"]["quote"]["text"] = "word " * 120
+    try:
+        endcard.layers(cfg, str(tmp_path / "layers2")); assert False, "a quote over 2 lines should refuse"
+    except ValueError:
+        pass

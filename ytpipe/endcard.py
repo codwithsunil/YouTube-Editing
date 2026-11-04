@@ -1,12 +1,17 @@
 """End card: every video ends on "Happy Coding!" (user rule, 2026-11-02).
 
 After the last spoken goodbye the render appends an ~8 s card: the video's last frame, blurred and darkened, under
-  Happy Coding!  ·  Keep in touch for more interesting videos  ·  NEXT <next topic> (when set)  ·  <site>
+  Happy Coding!  ·  Keep in touch for more interesting videos  ·  a motivational quote  ·  NEXT <next topic> (when set)  ·  <site>
 with the music track's own ending, faded out over the last 2 s. The text sits in the upper middle, so YouTube's end-screen
 elements (Subscribe, watch-next; allowed in the last 5-20 s) fit in the lower third.
 
   render       appends the card after QA when end_card.enabled (the outro music bed is skipped: the card carries the ending)
   end-card     rebuilds the card and the final from full_video/_parts/<id>_no_end_card.mp4 (e.g. after changing "next")
+
+Motivational quote (user rule, 2026-11-04: "always share some motivational quote for the learner at the end, make it a
+format"; "a motivational quote by some person or coder", not code): up to two lines in quotation marks, then
+"— author". end_card.quote = {"text", "author", "source"} per lesson (chosen to fit the video), else
+end_card.quotes[lesson_number % n]. Only real quotes with a recorded source: never invent or loosely attribute one.
 
 The final without the card is kept in full_video/_parts/. Parts are joined by stream copy with the card's video track
 re-timed to the main video's time base (different time bases made the joined video stop 8 s before its audio)."""
@@ -26,8 +31,30 @@ def site(cfg):
     u = (cfg.get("wordpress") or {}).get("site_url")
     return urllib.parse.urlparse(u).netloc if u else ""
 
+def quote(cfg):
+    """{"text", "author", "source"}: the lesson's own end_card.quote, else one of end_card.quotes by lesson number.
+    Only real, sourced quotes (the source is recorded and the quote is fact-checked like the narration)."""
+    E = cfg["end_card"]
+    if E.get("quote"): return E["quote"]
+    qs = E.get("quotes") or []
+    return qs[int(cfg["project"].get("lesson_number") or 0) % len(qs)] if qs else None
+
+def wrap(d, text, f, max_w):
+    """Words -> one line, or two balanced lines (the split with the narrower widest line), no wider than max_w px;
+    longer text falls back to greedy lines (the card refuses more than two)."""
+    ws = text.split(); width = lambda t: d.textlength(t, font=f)
+    if width(text) <= max_w: return [text]
+    two = min(([" ".join(ws[:i]), " ".join(ws[i:])] for i in range(1, len(ws))), key=lambda p: max(map(width, p)), default=None)
+    if two and max(map(width, two)) <= max_w: return two
+    lines, cur = [], ""
+    for w in ws:
+        t = (cur + " " + w).strip()
+        if cur and width(t) > max_w: lines.append(cur); cur = w
+        else: cur = t
+    return lines + ([cur] if cur else [])
+
 def layers(cfg, out_dir):
-    """Three transparent 1920x1080 PNGs, faded in one after the other: title, line, next + site."""
+    """Four transparent 1920x1080 PNGs, faded in one after the other: title, line, motivational quote, next + site."""
     E, G = cfg["end_card"], cfg["graphics"]; pal = G["palette"]; os.makedirs(out_dir, exist_ok=True)
     font = lambda k, s: ImageFont.truetype(os.path.join(config.ROOT, G[k]), s)
     text, lime, cyan, muted, ink = _rgb(pal["text"]), _rgb(pal["lime"]), _rgb(pal["cyan"]), (203, 213, 225), _rgb(pal["canvas"])
@@ -36,17 +63,24 @@ def layers(cfg, out_dir):
         for t, c in parts: d.text((x, y), t, font=f, fill=c); x += d.textlength(t, font=f)
     paths = []
     a = Image.new("RGBA", (W, H), (0, 0, 0, 0)); d = ImageDraw.Draw(a)
-    centered(d, 170, [(E["title"][0], text), (E["title"][1], lime)], font("font_black", 150))
+    centered(d, 95, [(E["title"][0], text), (E["title"][1], lime)], font("font_black", 150))
     b = Image.new("RGBA", (W, H), (0, 0, 0, 0)); d = ImageDraw.Draw(b)
-    d.rounded_rectangle(((W - 120) / 2, 395, (W + 120) / 2, 403), 4, fill=lime)
-    centered(d, 430, [(E["line"], text)], font("font_semibold", 52))
+    d.rounded_rectangle(((W - 120) / 2, 318, (W + 120) / 2, 326), 4, fill=lime)
+    centered(d, 345, [(E["line"], text)], font("font_semibold", 52))
+    m = Image.new("RGBA", (W, H), (0, 0, 0, 0)); d = ImageDraw.Draw(m); q = quote(cfg)
+    if q:                                             # the quote: up to 2 lines in quotation marks, then — author
+        fq, fa = font("font_semibold", 36), font("font_bold", 28)
+        lines = wrap(d, "\u201c" + q["text"] + "\u201d", fq, 1400)
+        if len(lines) > 2: raise ValueError(f"end_card quote needs {len(lines)} lines (max 2): choose a shorter quote")
+        for i, ln in enumerate(lines): centered(d, 440 + 48 * i, [(ln, text)], fq)
+        centered(d, 446 + 48 * len(lines), [("\u2014 " + q["author"], lime)], fa)
     c = Image.new("RGBA", (W, H), (0, 0, 0, 0)); d = ImageDraw.Draw(c); fb = font("font_bold", 38)
     if E.get("next"):
         lw, nw = d.textlength("NEXT", font=fb), d.textlength("  " + E["next"], font=fb); x = (W - lw - nw - 36) / 2
-        d.rounded_rectangle((x, 545, x + lw + 36, 603), 29, fill=cyan); d.text((x + 18, 551), "NEXT", font=fb, fill=ink)
-        d.text((x + lw + 36, 551), "  " + E["next"], font=fb, fill=text)
-    if site(cfg): centered(d, 640 if E.get("next") else 560, [(site(cfg), muted)], font("font_semibold", 34))
-    for n, im in enumerate((a, b, c), 1):
+        d.rounded_rectangle((x, 610, x + lw + 36, 668), 29, fill=cyan); d.text((x + 18, 616), "NEXT", font=fb, fill=ink)
+        d.text((x + lw + 36, 616), "  " + E["next"], font=fb, fill=text)
+    if site(cfg): centered(d, 692 if E.get("next") else 615, [(site(cfg), muted)], font("font_semibold", 34))
+    for n, im in enumerate((a, b, m, c), 1):
         p = os.path.join(out_dir, f"l{n}.png"); im.save(p); paths.append(p)
     return paths
 
@@ -60,17 +94,18 @@ def clip(cfg, main_mp4, out_mp4):
     dur = float(_probe(main_mp4, "format=duration")); tb = _probe(main_mp4, "stream=time_base", "v:0").split("/")[1]
     bg = os.path.join(wd, "bg.png")
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", f"{max(0.0, dur - 0.25):.3f}", "-i", main_mp4, "-frames:v", "1", bg], check=True)
-    l1, l2, l3 = layers(cfg, wd); music = os.path.join(config.ROOT, cfg["audio"]["music"]["file"])
+    l1, l2, l3, l4 = layers(cfg, wd); music = os.path.join(config.ROOT, cfg["audio"]["music"]["file"])
     mlen = float(_probe(music, "format=duration")); fps = cfg["output"]["fps"]; fo = max(0.0, d - 2.0)
     fc = (f"[0]scale=2112:1188,zoompan=z='1+0.0006*on':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d={int(d * fps)}:s={W}x{H}:fps={fps},"
           "gblur=sigma=22,eq=brightness=-0.22:saturation=0.7,drawbox=c=0x101827@0.35:t=fill,fade=t=in:st=0:d=0.5[bg];"
           "[1]format=rgba,fade=t=in:st=0.3:d=0.6:alpha=1[a];[2]format=rgba,fade=t=in:st=0.9:d=0.6:alpha=1[b];"
-          "[3]format=rgba,fade=t=in:st=1.5:d=0.6:alpha=1[c];[bg][a]overlay[x];[x][b]overlay[y];[y][c]overlay,format=yuv420p[v];"
-          f"[4]aresample=48000,aformat=channel_layouts=stereo,afade=t=in:st=0:d=0.4,afade=t=out:st={fo}:d={d - fo},"
+          "[3]format=rgba,fade=t=in:st=1.5:d=0.6:alpha=1[m];[4]format=rgba,fade=t=in:st=2.1:d=0.6:alpha=1[c];"
+          "[bg][a]overlay[x];[x][b]overlay[y];[y][m]overlay[z];[z][c]overlay,format=yuv420p[v];"
+          f"[5]aresample=48000,aformat=channel_layouts=stereo,afade=t=in:st=0:d=0.4,afade=t=out:st={fo}:d={d - fo},"
           f"loudnorm=I={E['music_lufs']}:TP=-2[aud]")
     tmp = out_mp4 + ".tmp.mp4"
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-loop", "1", "-framerate", str(fps), "-t", str(d), "-i", bg]
-                   + sum((["-loop", "1", "-framerate", str(fps), "-t", str(d), "-i", p] for p in (l1, l2, l3)), [])
+                   + sum((["-loop", "1", "-framerate", str(fps), "-t", str(d), "-i", p] for p in (l1, l2, l3, l4)), [])
                    + ["-ss", f"{max(0.0, mlen - d - 0.5):.3f}", "-t", str(d), "-i", music, "-filter_complex", fc, "-map", "[v]", "-map", "[aud]"]
                    + cfg["output"]["x264"] + ["-r", str(fps), "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709"]
                    + cfg["output"]["audio_codec"] + ["-ar", "48000", "-t", str(d), tmp], check=True)

@@ -1,22 +1,21 @@
 """End card: every video ends on "Happy Coding!" (user rule, 2026-11-02).
 
 After the last spoken goodbye the render appends an ~8 s card: the video's last frame, blurred and darkened, under
-  Happy Coding!  ·  Keep in touch for more interesting videos  ·  a motivational code line  ·  NEXT <next topic> (when set)  ·  <site>
+  Happy Coding!  ·  Keep in touch for more interesting videos  ·  a motivational quote  ·  NEXT <next topic> (when set)  ·  <site>
 with the music track's own ending, faded out over the last 2 s. The text sits in the upper middle, so YouTube's end-screen
 elements (Subscribe, watch-next; allowed in the last 5-20 s) fit in the lower third.
 
   render       appends the card after QA when end_card.enabled (the outro music bed is skipped: the card carries the ending)
   end-card     rebuilds the card and the final from full_video/_parts/<id>_no_end_card.mp4 (e.g. after changing "next")
 
-Motivational code (user rule, 2026-11-04: "always share some motivational code for the learner at the end, make it a
-format"): a code panel with a comment line and one line of code, syntax-coloured, e.g.
-  // every day, one more row
-  while (learning) { addOneMoreStar(); }
-end_card.motto = {"comment", "code"} per lesson (written to fit the video's topic), else end_card.mottos[lesson_number % n].
+Motivational quote (user rule, 2026-11-04: "always share some motivational quote for the learner at the end, make it a
+format"; "a motivational quote by some person or coder", not code): up to two lines in quotation marks, then
+"— author". end_card.quote = {"text", "author", "source"} per lesson (chosen to fit the video), else
+end_card.quotes[lesson_number % n]. Only real quotes with a recorded source: never invent or loosely attribute one.
 
 The final without the card is kept in full_video/_parts/. Parts are joined by stream copy with the card's video track
 re-timed to the main video's time base (different time bases made the joined video stop 8 s before its audio)."""
-import json, os, re, shutil, subprocess, time, urllib.parse
+import json, os, shutil, subprocess, time, urllib.parse
 from PIL import Image, ImageDraw, ImageFont
 from . import config
 
@@ -32,26 +31,30 @@ def site(cfg):
     u = (cfg.get("wordpress") or {}).get("site_url")
     return urllib.parse.urlparse(u).netloc if u else ""
 
-KEYWORDS = {"while", "for", "if", "else", "do", "try", "catch", "return", "true", "false", "var", "int"}
-
-def motto(cfg):
-    """{"comment", "code"}: the lesson's own end_card.motto, else one of end_card.mottos by lesson number."""
+def quote(cfg):
+    """{"text", "author", "source"}: the lesson's own end_card.quote, else one of end_card.quotes by lesson number.
+    Only real, sourced quotes (the source is recorded and the quote is fact-checked like the narration)."""
     E = cfg["end_card"]
-    if E.get("motto"): return E["motto"]
-    ms = E.get("mottos") or []
-    return ms[int(cfg["project"].get("lesson_number") or 0) % len(ms)] if ms else None
+    if E.get("quote"): return E["quote"]
+    qs = E.get("quotes") or []
+    return qs[int(cfg["project"].get("lesson_number") or 0) % len(qs)] if qs else None
 
-def code_tokens(code, pal):
-    """[(text, rgb)]: keywords cyan, function names lime, the rest plain."""
-    out = []
-    for m in re.finditer(r"[A-Za-z_]\w*|\s+|.", code):
-        t = m.group(); after = code[m.end():m.end() + 1]
-        c = pal["cyan"] if t in KEYWORDS else pal["lime"] if after == "(" and t[0].isalpha() else pal["text"]
-        out.append((t, _rgb(c)))
-    return out
+def wrap(d, text, f, max_w):
+    """Words -> one line, or two balanced lines (the split with the narrower widest line), no wider than max_w px;
+    longer text falls back to greedy lines (the card refuses more than two)."""
+    ws = text.split(); width = lambda t: d.textlength(t, font=f)
+    if width(text) <= max_w: return [text]
+    two = min(([" ".join(ws[:i]), " ".join(ws[i:])] for i in range(1, len(ws))), key=lambda p: max(map(width, p)), default=None)
+    if two and max(map(width, two)) <= max_w: return two
+    lines, cur = [], ""
+    for w in ws:
+        t = (cur + " " + w).strip()
+        if cur and width(t) > max_w: lines.append(cur); cur = w
+        else: cur = t
+    return lines + ([cur] if cur else [])
 
 def layers(cfg, out_dir):
-    """Four transparent 1920x1080 PNGs, faded in one after the other: title, line, motivational code, next + site."""
+    """Four transparent 1920x1080 PNGs, faded in one after the other: title, line, motivational quote, next + site."""
     E, G = cfg["end_card"], cfg["graphics"]; pal = G["palette"]; os.makedirs(out_dir, exist_ok=True)
     font = lambda k, s: ImageFont.truetype(os.path.join(config.ROOT, G[k]), s)
     text, lime, cyan, muted, ink = _rgb(pal["text"]), _rgb(pal["lime"]), _rgb(pal["cyan"]), (203, 213, 225), _rgb(pal["canvas"])
@@ -64,26 +67,19 @@ def layers(cfg, out_dir):
     b = Image.new("RGBA", (W, H), (0, 0, 0, 0)); d = ImageDraw.Draw(b)
     d.rounded_rectangle(((W - 120) / 2, 318, (W + 120) / 2, 326), 4, fill=lime)
     centered(d, 345, [(E["line"], text)], font("font_semibold", 52))
-    m = Image.new("RGBA", (W, H), (0, 0, 0, 0)); d = ImageDraw.Draw(m); mo = motto(cfg)
-    if mo:                                            # the code panel: comment line, then the code line
-        def mono(size, weight):
-            f = ImageFont.truetype(os.path.join(config.ROOT, G.get("font_mono", "assets/fonts/JetBrainsMono-wght.ttf")), size)
-            try: f.set_variation_by_axes([weight])
-            except (OSError, AttributeError): pass
-            return f
-        fc, fk = mono(30, 500), mono(42, 700); toks = code_tokens(mo["code"], pal)
-        cw = sum(d.textlength(t, font=fk) for t, _ in toks); w = max(cw, d.textlength(mo.get("comment", ""), font=fc)) + 96
-        if w > W - 160: raise ValueError(f"end_card motto too long ({w:.0f} px > {W - 160}): shorten the code line")
-        x0 = (W - w) / 2; d.rounded_rectangle((x0, 440, x0 + w, 560), 18, fill=(*_rgb(pal["card"]), 235), outline=_rgb(pal["border"]), width=2)
-        if mo.get("comment"): d.text((x0 + 48, 455), mo["comment"], font=fc, fill=_rgb(pal["muted"]))
-        x = x0 + 48
-        for t, col in toks: d.text((x, 498), t, font=fk, fill=col); x += d.textlength(t, font=fk)
+    m = Image.new("RGBA", (W, H), (0, 0, 0, 0)); d = ImageDraw.Draw(m); q = quote(cfg)
+    if q:                                             # the quote: up to 2 lines in quotation marks, then — author
+        fq, fa = font("font_semibold", 36), font("font_bold", 28)
+        lines = wrap(d, "\u201c" + q["text"] + "\u201d", fq, 1400)
+        if len(lines) > 2: raise ValueError(f"end_card quote needs {len(lines)} lines (max 2): choose a shorter quote")
+        for i, ln in enumerate(lines): centered(d, 440 + 48 * i, [(ln, text)], fq)
+        centered(d, 446 + 48 * len(lines), [("\u2014 " + q["author"], lime)], fa)
     c = Image.new("RGBA", (W, H), (0, 0, 0, 0)); d = ImageDraw.Draw(c); fb = font("font_bold", 38)
     if E.get("next"):
         lw, nw = d.textlength("NEXT", font=fb), d.textlength("  " + E["next"], font=fb); x = (W - lw - nw - 36) / 2
-        d.rounded_rectangle((x, 595, x + lw + 36, 653), 29, fill=cyan); d.text((x + 18, 601), "NEXT", font=fb, fill=ink)
-        d.text((x + lw + 36, 601), "  " + E["next"], font=fb, fill=text)
-    if site(cfg): centered(d, 680 if E.get("next") else 600, [(site(cfg), muted)], font("font_semibold", 34))
+        d.rounded_rectangle((x, 610, x + lw + 36, 668), 29, fill=cyan); d.text((x + 18, 616), "NEXT", font=fb, fill=ink)
+        d.text((x + lw + 36, 616), "  " + E["next"], font=fb, fill=text)
+    if site(cfg): centered(d, 692 if E.get("next") else 615, [(site(cfg), muted)], font("font_semibold", 34))
     for n, im in enumerate((a, b, m, c), 1):
         p = os.path.join(out_dir, f"l{n}.png"); im.save(p); paths.append(p)
     return paths

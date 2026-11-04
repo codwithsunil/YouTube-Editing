@@ -98,8 +98,7 @@
     },
     "font_black": "assets/fonts/Poppins-Black.ttf",
     "font_bold": "assets/fonts/Poppins-Bold.ttf",
-    "font_semibold": "assets/fonts/Poppins-SemiBold.ttf",
-    "font_mono": "assets/fonts/JetBrainsMono-wght.ttf"
+    "font_semibold": "assets/fonts/Poppins-SemiBold.ttf"
   },
   "captions": {
     "enabled": true,
@@ -320,7 +319,7 @@
     "required": true
   },
   "end_card": {
-    "_note": "User rule 2026-11-02: every video ends on 'Happy Coding!' (ytpipe/endcard.py). 'next' = the next video's topic, set per lesson (omitted when null); 'site' falls back to wordpress.site_url's host. The outro music bed is skipped while the card is on: the card carries the track's ending. Motivational code (user rule 2026-11-04): 'motto' {comment, code} per lesson, written for the video's topic; else 'mottos' by lesson number.",
+    "_note": "User rule 2026-11-02: every video ends on 'Happy Coding!' (ytpipe/endcard.py). 'next' = the next video's topic, set per lesson (omitted when null); 'site' falls back to wordpress.site_url's host. The outro music bed is skipped while the card is on: the card carries the track's ending. Motivational quote (user rule 2026-11-04): 'quote' {text, author, source} per lesson, chosen for the video; else 'quotes' by lesson number. Real, sourced quotes only.",
     "enabled": true,
     "duration_s": 8.0,
     "title": [
@@ -331,31 +330,37 @@
     "next": null,
     "site": null,
     "music_lufs": -20.0,
-    "motto": null,
-    "mottos": [
+    "quote": null,
+    "quotes": [
       {
-        "comment": "// every expert was once a beginner",
-        "code": "while (!expert) { practice(); }"
+        "text": "The only way to learn a new programming language is by writing programs in it.",
+        "author": "Brian Kernighan & Dennis Ritchie",
+        "source": "The C Programming Language (1978), 1.1 Getting Started"
       },
       {
-        "comment": "// stuck? that is part of the loop",
-        "code": "if (stuck) { breakItDown(); }"
+        "text": "Programs must be written for people to read, and only incidentally for machines to execute.",
+        "author": "Harold Abelson & Gerald Jay Sussman",
+        "source": "Structure and Interpretation of Computer Programs (1985), preface to the first edition"
       },
       {
-        "comment": "// mistakes are how we learn",
-        "code": "try { code(); } catch (Exception e) { learn(e); }"
+        "text": "Any fool can write code that a computer can understand. Good programmers write code that humans can understand.",
+        "author": "Martin Fowler",
+        "source": "Refactoring: Improving the Design of Existing Code (1999)"
       },
       {
-        "comment": "// one small step every day",
-        "code": "for (day = 1; ; day++) { learnSomething(); }"
+        "text": "Talk is cheap. Show me the code.",
+        "author": "Linus Torvalds",
+        "source": "Linux kernel mailing list, 25 August 2000"
       },
       {
-        "comment": "// keep going",
-        "code": "do { practice(); } while (!confident);"
+        "text": "Simplicity is prerequisite for reliability.",
+        "author": "Edsger W. Dijkstra",
+        "source": "EWD498, 'How do we tell truths that might hurt?' (1975)"
       },
       {
-        "comment": "// think first, then code",
-        "code": "if (confused) { drawTheFlowchart(); }"
+        "text": "Everybody in this country should learn to program a computer, because it teaches you how to think.",
+        "author": "Steve Jobs",
+        "source": "Steve Jobs: The Lost Interview (1995, released 2012)"
       }
     ]
   }

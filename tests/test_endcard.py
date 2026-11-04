@@ -62,17 +62,15 @@ def test_no_outro_bed_while_the_card_is_on(tmp_path):
     cfg["end_card"]["enabled"] = False
     assert len(audio.music_plan(cfg, segs, [], [])) == 1
 
-def test_every_card_has_motivational_code(tmp_path):
-    """User rule 2026-11-04: the card always shares a motivational code line; the lesson's own, else a default."""
+def test_every_card_has_a_motivational_quote(tmp_path):
+    """User rule 2026-11-04: the card always shares a motivational quote; the lesson's own, else a sourced default."""
     cfg = cfg_for(tmp_path)
-    assert endcard.motto(cfg)["code"]                                      # a default from end_card.mottos
-    cfg["end_card"]["motto"] = {"comment": "// keep going", "code": "while (learning) { addOneMoreStar(); }"}
-    assert endcard.motto(cfg)["code"].startswith("while")
-    cols = {t: c for t, c in endcard.code_tokens(cfg["end_card"]["motto"]["code"], cfg["graphics"]["palette"])}
-    assert cols["while"] != cols["learning"] and cols["addOneMoreStar"] != cols["learning"]
-    assert len(endcard.layers(cfg, str(tmp_path / "layers"))) == 4
-    cfg["end_card"]["motto"]["code"] = "x" * 200
+    q = endcard.quote(cfg); assert q["text"] and q["author"] and q["source"]
+    cfg["end_card"]["quote"] = {"text": "Talk is cheap. Show me the code.", "author": "Linus Torvalds", "source": "LKML 2000"}
+    assert endcard.quote(cfg)["author"] == "Linus Torvalds"
+    assert Image.open(endcard.layers(cfg, str(tmp_path / "layers"))[2]).getbbox() is not None
+    cfg["end_card"]["quote"]["text"] = "word " * 120
     try:
-        endcard.layers(cfg, str(tmp_path / "layers2")); assert False, "too long should refuse"
+        endcard.layers(cfg, str(tmp_path / "layers2")); assert False, "a quote over 2 lines should refuse"
     except ValueError:
         pass

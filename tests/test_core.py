@@ -112,3 +112,14 @@ def test_runaway_chunk_is_decoded_again_in_strict_mode():
     m = Model(); out = transcript.decode_chunk(m, None, {"language": "hi"}, limit_s=90, log=lambda *_: None, clock=clock)
     assert [s.text for s in out] == ["clean"] and m.calls[1]["temperature"] == 0.0
     assert all("hallucination_silence_threshold" not in c for c in m.calls)       # it can loop without yielding (lesson08)
+
+def test_presenter_frame_is_cropped_not_stretched():
+    """lesson09: a cropped 1342x968 face export was stretched to 16:9; narrower sources lose top/bottom instead."""
+    import numpy as np
+    from ytpipe import render
+    ft = np.array([[t, 960.0, 300.0] for t in range(10)])               # face centre in 1920x1080 frame space
+    x, y, w, h = render.frame_crop(ft, 0, 9, 1342, 968)
+    assert (x, w) == (0, 1342) and abs(w / h - 16 / 9) < 0.01 and 0 <= y <= 968 - h
+    x, y, w, h = render.frame_crop(ft, 0, 9, 2864, 1322)
+    assert (y, h) == (0, 1322) and abs(w / h - 16 / 9) < 0.01
+    assert render.frame_crop(ft, 0, 9, 1920, 1080) is None

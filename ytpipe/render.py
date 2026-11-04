@@ -62,13 +62,20 @@ def wide_crop(path, W=1920, H=1080):
     cw = int(round(h * W / H / 2)) * 2
     return [(w - cw) // 2, 0, cw, h] if cw < w - 2 else None
 
-def frame_crop(face_track, a, b, src_w, src_h, W=1920, H=1080):
-    """Layout A for a source wider than the output (e.g. 2864x1322): full height, sides cropped to W:H around the
-    median face of the shot (fixed per shot). None when the source already has the output's aspect ratio."""
+def frame_crop(face_track, a, b, src_w, src_h, W=1920, H=1080, face_y=0.36):
+    """Layout A crop to W:H around the median face of the shot (fixed per shot), so the camera is never stretched.
+    Wider source (e.g. 2864x1322): full height, sides cropped. Narrower source (lesson09: a cropped export, 1342x968):
+    full width, top and bottom cropped with the face at face_y of the frame. None when the aspect ratio already matches."""
+    f = _face_median(face_track, a, b, src_w, src_h)
     cw = int(round(src_h * W / H / 2)) * 2
-    if cw >= src_w - 2: return None
-    f = _face_median(face_track, a, b, src_w, src_h); cx = f[0] if f else src_w / 2
-    return [int(round(min(max(0, cx - cw / 2), src_w - cw))), 0, cw, src_h]
+    if cw < src_w - 2:
+        cx = f[0] if f else src_w / 2
+        return [int(round(min(max(0, cx - cw / 2), src_w - cw))), 0, cw, src_h]
+    ch = int(round(src_w * H / W / 2)) * 2
+    if ch < src_h - 2:
+        cy = f[1] if f else src_h / 3
+        return [0, int(round(min(max(0, cy - face_y * ch), src_h - ch))), src_w, ch]
+    return None
 
 def tight(png):
     """(path, x, y): an RGBA layer cropped to its visible pixels, written next to it (<name>_tight.png). Overlaying the

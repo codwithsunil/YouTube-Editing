@@ -1,4 +1,6 @@
-"""Segment renderer for layouts A/B/C (generic port of render_preview_v6.render + render_full_v9.render_seg).
+"""Segment renderer for layouts A/B/C/F (generic port of render_preview_v6.render + render_full_v9.render_seg).
+F: the desktop full frame with no camera circle (lesson10: a smart board written on edge to edge), under the optional
+layout.board_cover PNG that hides the board app's own buttons; no chip bar or badges (they would cover the writing).
 
 A segment = (layout, face_in, face_out[, zoom]) with face_in/out on the output frame grid. The desktop is read at
 face time + offset (sync stage). One lossy encode per segment (x264 from config); segments are decode-checked,
@@ -96,6 +98,14 @@ def segment(cfg, g, layers, seg, out, offset, pipeline, crop=None, bar=None, bad
     inputs = ["-ss", f"{a:.4f}", "-t", f"{T}", "-i", face]; rgb = "scale=out_color_matrix=bt709:out_range=tv"
     if seg["layout"] == "A":
         fc = f"[0:v]setpts=PTS-STARTPTS,fps={fps},{face_filter(cfg, pipeline, W, H, crop, 'yuv444p')},setsar=1[s0];"; prev = "s0"; n = 1
+    elif seg["layout"] == "F":                        # the whole board, full frame, under layout.board_cover (app buttons hidden)
+        hold = seg.get("desk_hold"); cover = cfg["layout"].get("board_cover")
+        inputs += ["-ss", f"{hold if hold is not None else a + seg.get('desk_offset', offset):.4f}", "-t", f"{0.5 if hold is not None else T}", "-i", desk]
+        fc = (f"[1:v]{f'trim=end_frame=1,setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration={T + 1},' if hold is not None else ''}"
+              f"fps={fps},scale={W}:{H}:flags=lanczos,format=yuv444p,setsar=1[s0];"); prev = "s0"; n = 2
+        if cover:
+            inputs += loop(cover)
+            fc += f"[2:v]{rgb},format=yuva444p,setsar=1[cv];[s0][cv]overlay=0:0:shortest=1:format=yuv444[s1];"; prev = "s1"; n = 3
     else:
         d = g["camera"][2]; cx, cy, cw, ch = g["card"]
         (rg, rx, ry), (sh, hx, hy), (rc, qx, qy) = (tight(layers[k]) for k in ("card_ring", "cam_shadow", "cam_ring"))

@@ -2,7 +2,7 @@
 make_overlays_v9.py; approved sizes: chips 26 px / 48 px high, section label 22 px, badge 23 px / 42 px high).
 
 Chip timeline : [(F, lead, chips, active)] (face time) -> one RGBA MOV per segment, 0.25 s crossfades.
-Elements      : {"kind", "start" (F), "duration", params}. Kinds: title, topic, term, ipo, rings, end, code (spec'd scaffold).
+Elements      : {"kind", "start" (F), "duration", params}. Kinds: title, topic, term, note (a term box at x, y), ipo, rings, end, code (spec'd scaffold).
                'rings' takes the diagram's circles [{"cx","cy","r","color"}] in CANVAS px (from the card geometry), so
                nothing is tied to Lesson 01's slide 3. HyperFrames is run from _work/hf (local install, v0.8.181)."""
 import json, os, shutil, subprocess
@@ -125,7 +125,13 @@ def _code(p):
                  for i, b in enumerate(p["lines"]))
     return body, js
 
-KINDS = {"term": _term, "rings": _rings, "ipo": _steps, "steps": _steps, "code": _code,
+def _note(p):
+    """A term-style box placed at (x, y) canvas px, e.g. a correction beside the board writing it corrects (lesson10:
+    the board says OL2 where the inner loop is meant). Place it where the board stays empty for its duration."""
+    t, s = _term({"label": p.get("label", "CORRECTION"), "t": p["t"], "d": p["d"]})
+    return t.replace('id="c"', f'id="c" style="left:{p["x"]}px; top:{p["y"]}px; width:{p.get("w", 240)}px"', 1), s
+
+KINDS = {"term": _term, "note": _note, "rings": _rings, "ipo": _steps, "steps": _steps, "code": _code,
          "topic": lambda p: _panel(p, "top", p.get("label", "Topic"), f'<div style="font-weight:700; font-size:34px; line-height:1.15; margin-top:4px">{p["text"]}</div>'),
          "title": lambda p: _panel(p, "bottom", p["kicker"], '<div id="tt" style="font-weight:700; font-size:52px; line-height:1.08; margin-top:8px">'
                                    + "<br>".join(f"<span>{l}</span>" for l in p["lines"]) + "</div>", 20),

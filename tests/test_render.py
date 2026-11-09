@@ -47,3 +47,20 @@ def test_render_abc_segments(tmp_path):
     f = media.frames(parts[1], 1.0, 0.04, 1920, 1080, 30, pix="rgb24")[0].astype(int)
     cx, cy, d = g["camera"]; c = f[cy + d // 2, cx + d // 2]; o = f[cy + d // 2, min(1919, cx + d + 14)]
     assert np.abs(c - np.array([16, 24, 39])).sum() > 30 and np.abs(o - np.array([16, 24, 39])).sum() < 30
+
+def test_board_fullscreen_segment_hides_the_app_buttons(tmp_path):
+    """Layout F (lesson10, a smart board written on edge to edge): the desktop fills the frame, no camera circle, and the
+    board_cover PNG is drawn over it (the board app's toolbar and classroom ID hidden)."""
+    from PIL import Image
+    cfg = make_cfg(tmp_path); meta = sources.run(cfg); a = analyze.run(cfg, meta, steps=("desktop",))
+    masks = list(np.load(os.path.join(cfg["paths"]["analysis"], "content_masks.npz")).values())
+    g = layout.geometry(cfg, a["slide_area"], masks, a["counter_box"]); L = layout.static_layers(cfg, g, str(tmp_path / "layers"))
+    cover = Image.new("RGBA", (1920, 1080), (0, 0, 0, 0)); cover.paste((200, 30, 30, 255), (0, 1000, 1920, 1080))
+    cfg["layout"]["board_cover"] = str(tmp_path / "cover.png"); cover.save(cfg["layout"]["board_cover"])
+    out = str(tmp_path / "f.mkv")
+    render.render_segment(render.segment(cfg, g, L, {"layout": "F", "face_in": 6.0, "face_out": 8.0}, out, 7.4, "sdr"), out)
+    assert render.frame_count(out) == 60 and not media.decode_errors(out)
+    f = media.frames(out, 1.0, 0.04, 1920, 1080, 30, pix="rgb24")[0].astype(int)
+    assert np.abs(f[1040, 960] - [200, 30, 30]).sum() < 40                       # the cover is on top
+    cx, cy, d = g["camera"]; dk = media.frames(cfg["sources"]["desktop_recording"], 13.4, 0.04, 1920, 1080, 30, pix="rgb24")[0].astype(int)
+    assert np.abs(f[cy + d // 2, cx + d // 2] - dk[cy + d // 2, cx + d // 2]).sum() < 40    # the desktop, not a circle, in the corner

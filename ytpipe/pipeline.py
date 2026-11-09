@@ -65,12 +65,12 @@ def build(cfg, plan, analysis, meta, out_mp4, only=None, gate="full_render", wd=
         out = os.path.join(wd, f"seg_{i:03d}.mkv"); parts.append(out)
         if only is not None and i not in only: continue
         bar = None
-        if s["layout"] != "A" and plan.get("chips"):
+        if s["layout"] not in ("A", "F") and plan.get("chips"):
             bar = (graphics.bar_video(cfg, g, [tuple(c) for c in plan["chips"]], s["face_in"], s["face_out"], os.path.join(wd, f"bar_{i:03d}.mov")), s["face_in"])
         badges = []
         for a, b, n, tot in nums:
             lo, hi = max(a, s["face_in"]), min(b, s["face_out"])
-            if s["layout"] != "A" and hi > lo:
+            if s["layout"] not in ("A", "F") and hi > lo:
                 png, w = graphics.badge(cfg, n, tot, os.path.join(wd, f"badge_{n:02d}.png"))
                 badges.append((png, g["badge_anchor"][0] - w, g["badge_anchor"][1], lo - s["face_in"], hi - s["face_in"]))
         mine = [(els[e["start"]], e["start"] - s["face_in"]) for e in plan.get("elements", []) if s["face_in"] <= e["start"] < s["face_out"]]

@@ -244,6 +244,7 @@ def main(argv=None):
             for a_, b_ in zip(bs_, bs_[1:]):                   # sync sections: each stretch with its own desktop offset
                 o_ = sync.desk_offset(E["segments"], a_, off_); ink += shorts_v3.ink_runs(cfg["sources"]["desktop_recording"], a_ + o_, b_ + o_, o_)
             parts = shorts_v3.plan(F0, F1, [l["face"] for l in lines if F0 <= l["face"] <= F1], env, ink)
+            if cfg["shorts"].get("v4", {}).get("presenter_only_when_facing"): parts = shorts_v3.facing_parts(parts, ft)
             pipe = meta()["face_color_pipeline"] if os.path.exists(os.path.join(A, "metadata.json")) else "libplacebo"
             if a.style == "v4":                              # approved 2026-10-22: tightened pauses, 2-4 word captions, music, guided split
                 from . import shorts_audio, shorts_focus
@@ -252,6 +253,8 @@ def main(argv=None):
                 crops, gparts, glog = {}, [], []
                 for f0_, f1_, l_ in parts:                   # A parts: the desktop follows what is being explained
                     o_ = sync.desk_offset(E["segments"], f0_, off_)
+                    if c.get("desk_crop") and l_ != "B":     # curated: a fixed board area for the clip (lesson10: a full smart board)
+                        crops[(f0_, f1_)] = {"desk": c["desk_crop"], "parent": (f0_, f1_)}; gparts.append((f0_, f1_, l_)); continue
                     if l_ == "C" and V4.get("guided_split", {}).get("enabled", True):   # desktop focus: widened so no word is cut at an edge
                         fr_ = shorts_focus.ocr(cfg["sources"]["desktop_recording"], [round(f0_ + o_ + 0.2, 2), round(f1_ + o_ - 0.2, 2)], os.path.join(P["shorts"], "ocr_cache.json"))
                         c0 = shorts_v3.focus_crop(cfg["sources"]["desktop_recording"], f0_ + o_, f1_ + o_, area, 1080 / 1260) or shorts_v2.content_crop(cfg["sources"]["desktop_recording"], f0_ + o_, f1_ + o_, area, cb, aspect=1080 / 1260, min_w=700)

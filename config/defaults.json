@@ -247,6 +247,8 @@
     "zoom_min_source_width": 700,
     "highlight_terms": true,
     "v4": {
+      "presenter_only_when_facing": false,
+      "_presenter_only_when_facing": "true: the presenter is shown only while a face is detected (facing the camera); writing at a board -> board only (user 2026-11-09, classroom lessons)",
       "_approved": "2026-10-22 (Short 01 v4 review): narration-first pacing, chunk captions, Tech Live music, guided split; no extra presenter zoom",
       "pause_min_s": 0.35,
       "pause_keep_s": 0.25,

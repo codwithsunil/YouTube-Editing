@@ -78,6 +78,34 @@ def plan(F0, F1, sentence_starts, env, ink, slide_visible=True, min_part=3.0):
         else: merged.append(p)
     return [(round(a, 3), round(b, 3), l) for a, b, l in merged]
 
+def facing_parts(parts, ft, min_s=2.0, gap_s=1.0):
+    """Presenter only while facing the camera (user 2026-11-09, classroom lessons: 'show the face when I am talking to
+    camera, not when writing on the board'). ft = face track [t, x, y, size] with NaN where no face was found (a face at
+    the board is seen side-on or from behind and is not detected). Stretches without a face become desktop focus (C);
+    facing stretches keep their layout (a C part becomes A, board + presenter). Pieces under min_s join a neighbour."""
+    import numpy as np
+    if ft is None: return parts
+    out = []
+    for a, b, lay in parts:
+        m = (ft[:, 0] >= a) & (ft[:, 0] <= b); ts = ft[m, 0][~np.isnan(ft[m, 1])]
+        runs = []
+        for t in ts:                                  # face runs, gaps up to gap_s bridged
+            if runs and t - runs[-1][1] <= gap_s: runs[-1][1] = t
+            else: runs.append([t, t])
+        runs = [(max(a, r0 - 0.25), min(b, r1 + 0.25)) for r0, r1 in runs if r1 - r0 + 0.5 >= min_s]
+        t = a
+        for r0, r1 in runs:
+            if r0 > t: out.append((t, r0, "C"))
+            out.append((r0, r1, "A" if lay == "C" else lay)); t = r1
+        if b > t: out.append((t, b, "C"))
+    merged = []
+    for p in out:
+        if merged and (p[2] == merged[-1][2] or p[1] - p[0] < min_s): merged[-1] = (merged[-1][0], p[1], merged[-1][2])
+        else: merged.append(p)
+    if len(merged) > 1 and merged[0][1] - merged[0][0] < min_s:              # a short first piece joins the next one
+        merged[1:2] = [(merged[0][0], merged[1][1], merged[1][2])]; merged.pop(0)
+    return [(round(a, 3), round(b, 3), l) for a, b, l in merged]
+
 # ---------------------------------------------------------------- captions
 def _ass(cues, path, layout, glossary_terms, band_bottom=None, style="line"):
     if layout == "A": mv, al = H - (band_bottom or G["A"]["cap_band"][1]) + (8 if style == "line" else 30), 2
@@ -266,8 +294,10 @@ def render(cfg, final, cues, parts, offset, ft, pipeline, out, glossary_terms, e
             else:
                 bx, by, bw, bh = G["C"]["desk"]; dc = gs["desk"] if gs else focus_crop(desk, P0 + offset, P1 + offset, area, bw / bh) or content_crop(desk, P0 + offset, P1 + offset, area, counter_box, aspect=bw / bh, min_w=700)
             w, h, px, py = _fit(dc, bw, bh); x, y, cw, ch = [int(v) // 2 * 2 for v in dc]
+            cover = cfg["layout"].get("board_cover")                        # the board app's buttons hidden, as in the long video
             fc = (f"color=c={NAVY}:s={W}x{H}:r={FPS}:d={T:.4f},format=yuv420p[bg];"
-                  f"[1:v]fps={FPS},crop={cw}:{ch}:{x}:{y},scale={w}:{h}:flags=lanczos,setsar=1[dk];[bg][dk]overlay={bx + px}:{by + py}[s1];")
+                  f"[1:v]fps={FPS}{'[d0];[d0][2:v]overlay=0:0:shortest=1' if cover else ''},crop={cw}:{ch}:{x}:{y},scale={w}:{h}:flags=lanczos,setsar=1[dk];"
+                  f"[bg][dk]overlay={bx + px}:{by + py}[s1];")
             if lay == "A":
                 fx, fy, fw_, fh_ = pres; pc = presenter_crop(ft, *(gs["parent"] if gs else (P0, P1)), fw_ / fh_, face_y=0.30)
                 fc += f"[0:v]fps={FPS},{_pl(cfg, pipeline, fw_, fh_, src(pc))},setsar=1[pr];[s1][pr]overlay={fx}:{fy}[s2];[s2]subtitles='{_esc(ass)}'[v]"
@@ -275,7 +305,7 @@ def render(cfg, final, cues, parts, offset, ft, pipeline, out, glossary_terms, e
             else:
                 fc += f"[s1]subtitles='{_esc(ass)}'[v]"
                 info.append({"part": k, "layout": "C desktop focus", "src": [P0, P1], "desktop_crop": [x, y, cw, ch], "desktop_scale": round(w / cw, 3)})
-            cmd = base + ["-ss", f"{D0:.4f}", "-t", f"{T:.4f}", "-i", desk]
+            cmd = base + ["-ss", f"{D0:.4f}", "-t", f"{T:.4f}", "-i", desk] + (["-loop", "1", "-framerate", str(FPS), "-t", f"{T:.4f}", "-i", cover] if cover else [])
         cmd += ["-filter_complex", fc, "-map", "[v]", "-t", f"{T:.4f}", "-r", str(FPS), *cfg["output"]["x264"][:6], "-pix_fmt", "yuv420p",
                 "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709", "-color_range", "tv", "-an", po]
         media.run(cmd); files.append(po)

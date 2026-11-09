@@ -108,3 +108,15 @@ def test_edit_starts_at_the_voice_not_the_first_heard_word():
     env = np.full(1200, -62.0); env[660:1060] = -24.0; env[1120:] = -25.0
     assert abs(timeline.voice_onset(env, 9.45, -35.0) - 6.45) < 0.02
     assert timeline.voice_onset(env, 11.3, -35.0) == 11.05                 # pause before 11.2 s: starts 0.15 s ahead of the voice
+
+def test_presenter_only_while_facing_the_camera():
+    """User rule 2026-11-09 (classroom lessons): in Shorts the presenter shows only while a face is detected; writing at
+    the board (no face) is board only. A tiny first piece joins the next one."""
+    import numpy as np
+    from ytpipe import shorts_v3
+    t = np.arange(0, 30, 0.5); ft = np.full((len(t), 4), np.nan); ft[:, 0] = t
+    face = (t >= 10) & (t < 16); ft[face, 1:] = 900
+    p = shorts_v3.facing_parts([(0.0, 30.0, "A")], ft)
+    assert [l for *_, l in p] == ["C", "A", "C"] and abs(p[1][0] - 9.75) < 0.01 and abs(p[1][1] - 15.75) < 0.01
+    ft[:, 1:] = 900; ft[0, 1:] = np.nan
+    assert [l for *_, l in shorts_v3.facing_parts([(0.0, 30.0, "B")], ft)] == ["B"]

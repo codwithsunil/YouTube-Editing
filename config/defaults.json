@@ -323,7 +323,7 @@
     "required": true
   },
   "end_card": {
-    "_note": "User rule 2026-11-02: every video ends on 'Happy Coding!' (ytpipe/endcard.py). 'next' = the next video's topic, set per lesson (omitted when null); 'site' falls back to wordpress.site_url's host. The outro music bed is skipped while the card is on: the card carries the track's ending. Motivational quote (user rule 2026-11-04): 'quote' {text, author, source} per lesson, chosen for the video; else 'quotes' by lesson number. Real, sourced quotes only.",
+    "_note": "User rule 2026-11-02: every video ends on 'Happy Coding!' (ytpipe/endcard.py). 'next' = the next video's topic, set per lesson (omitted when null); 'site' falls back to wordpress.site_url's host. The outro music bed is skipped while the card is on: the card carries the track's ending. Motivational quote (user rule 2026-11-04): 'quote' {text, author, source} per lesson, chosen for the video; else 'quotes' by lesson number. Real, sourced quotes only: a quote whose exact wording cannot be confirmed in its source is not used (2026-11-10: the Steve Jobs 'Lost Interview' line was removed; sources disagree on its wording). Published lessons pin their quote in their own config.",
     "enabled": true,
     "duration_s": 8.0,
     "title": [
@@ -360,11 +360,6 @@
         "text": "Simplicity is prerequisite for reliability.",
         "author": "Edsger W. Dijkstra",
         "source": "EWD498, 'How do we tell truths that might hurt?' (1975)"
-      },
-      {
-        "text": "Everybody in this country should learn to program a computer, because it teaches you how to think.",
-        "author": "Steve Jobs",
-        "source": "Steve Jobs: The Lost Interview (1995, released 2012)"
       }
     ]
   }

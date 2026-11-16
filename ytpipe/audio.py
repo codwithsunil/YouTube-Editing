@@ -27,8 +27,32 @@ def runs_from(pieces, fps):
         t += d
     return runs, t
 
-def narration_raw(face_path, pieces, fps):
-    x = ff_float(["-i", face_path, "-af", "pan=mono|c0=c0"], 1)[:, 0]; runs, total = runs_from(pieces, fps)
+def apply_patches(x, patches, xf=0.010, join=0.005):
+    """Narration patches [{at, from, dur}] (face seconds): x[at:at+dur] becomes the presenter's own audio from
+    x[from:from+dur] (lesson12: a misspoken condition replaced by the same words said correctly earlier in the lecture;
+    gaps filled with the room's own silence). Patches that touch form one replaced stretch: only its outer edges
+    crossfade with the original (10 ms, equal power); inside it, pieces meet with 5 ms fades of their own, so no
+    fragment of the replaced words leaks through at a join. Only where the camera is off screen (no lip sync to break):
+    the timeline decides that, not this function."""
+    y = x.copy(); n, m = int(round(xf * SR)), int(round(join * SR))
+    ps = sorted((p for p in patches or ()), key=lambda p: p["at"]); groups = []
+    for p in ps:
+        if groups and abs(groups[-1][-1]["at"] + groups[-1][-1]["dur"] - p["at"]) < 1e-3: groups[-1].append(p)
+        else: groups.append([p])
+    for g in groups:
+        a0 = int(round(g[0]["at"] * SR)); parts = []
+        for k, p in enumerate(g):
+            seg = x[int(round(p["from"] * SR)):int(round(p["from"] * SR)) + int(round(p["dur"] * SR))].copy()
+            if k > 0: seg[:m] *= np.linspace(0, 1, m)
+            if k < len(g) - 1: seg[-m:] *= np.linspace(1, 0, m)
+            parts.append(seg)
+        seg = np.concatenate(parts); k = len(seg); w = np.ones(k)
+        w[:n] = np.sin(np.linspace(0, 1, n) * np.pi / 2); w[-n:] = np.sin(np.linspace(1, 0, n) * np.pi / 2)
+        y[a0:a0 + k] = y[a0:a0 + k] * np.sqrt(np.clip(1 - w ** 2, 0, 1)) + seg * w
+    return y
+
+def narration_raw(face_path, pieces, fps, patches=None):
+    x = apply_patches(ff_float(["-i", face_path, "-af", "pan=mono|c0=c0"], 1)[:, 0], patches); runs, total = runs_from(pieces, fps)
     y = np.zeros(int(round(total * SR)) + 1); h = XF / 2; nx = int(round(XF * SR))
     for k, (a, d, t) in enumerate(runs):
         pre = h if k > 0 else 0.0; post = h if k < len(runs) - 1 else 0.0
@@ -100,7 +124,7 @@ def to_edit(sections, built):
     return out
 
 def mix(cfg, pieces, sections, sfx, out_wav, stem_wav):
-    fps = cfg["output"]["fps"]; y, runs = narration_raw(cfg["sources"]["face_camera"], pieces, fps)
+    fps = cfg["output"]["fps"]; y, runs = narration_raw(cfg["sources"]["face_camera"], pieces, fps, cfg["audio"].get("narration_patches"))
     wavfile.write(stem_wav, SR, y.astype(np.float32))                       # narration stem for joint QC
     narr = voice_chain(cfg, y, stem_wav.replace(".wav", "_tmp.wav")); n = len(narr); total = n / SR
     M = cfg["audio"]["music"]; music = np.zeros((n, 2))

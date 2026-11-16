@@ -137,6 +137,8 @@
     ]
   },
   "audio": {
+    "narration_patches": [],
+    "_narration_patches": "[{at, from, dur}] face seconds: replace narration at 'at' with the presenter's own audio from 'from' (a misspoken phrase replaced by the same words said correctly elsewhere; only where the camera is off screen). lesson12.",
     "narration_lufs_mono": -19.0,
     "delivery_lufs": -16.0,
     "true_peak_dbtp": -1.5,

@@ -87,6 +87,15 @@ def tight(png):
     out = png[:-4] + "_tight.png"; im.crop(box).save(out)
     return out, box[0], box[1]
 
+def board_covers(cfg):
+    """layout.board_cover as [(png, desk_from, desk_to)]: one PNG for the whole recording, or a list of
+    {file, desk_from, desk_to} when the board app's UI moves or must not hide writing added later (lesson12: the
+    'Saving...' pill is covered whole until the START oval is drawn next to it, then only beside the oval)."""
+    c = cfg["layout"].get("board_cover")
+    if not c: return []
+    if isinstance(c, str): return [(c, -1e9, 1e9)]
+    return [(x["file"], float(x.get("desk_from", -1e9)), float(x.get("desk_to", 1e9))) for x in c]
+
 def segment(cfg, g, layers, seg, out, offset, pipeline, crop=None, bar=None, badges=(), elements=(), focus=None):
     """seg = {layout, face_in, face_out, zoom?, desk_offset?, desk_hold?} (desk_offset: a sync section's own offset;
     desk_hold: desktop time of the one frame shown while the desktop is paused). bar = (mov, start_face_time). badges = [(png, x, y, t0, t1)] local times.
@@ -99,13 +108,15 @@ def segment(cfg, g, layers, seg, out, offset, pipeline, crop=None, bar=None, bad
     if seg["layout"] == "A":
         fc = f"[0:v]setpts=PTS-STARTPTS,fps={fps},{face_filter(cfg, pipeline, W, H, crop, 'yuv444p')},setsar=1[s0];"; prev = "s0"; n = 1
     elif seg["layout"] == "F":                        # the whole board, full frame, under layout.board_cover (app buttons hidden)
-        hold = seg.get("desk_hold"); cover = cfg["layout"].get("board_cover")
-        inputs += ["-ss", f"{hold if hold is not None else a + seg.get('desk_offset', offset):.4f}", "-t", f"{0.5 if hold is not None else T}", "-i", desk]
+        hold = seg.get("desk_hold"); d0 = hold if hold is not None else a + seg.get('desk_offset', offset)
+        inputs += ["-ss", f"{d0:.4f}", "-t", f"{0.5 if hold is not None else T}", "-i", desk]
         fc = (f"[1:v]{f'trim=end_frame=1,setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration={T + 1},' if hold is not None else ''}"
               f"fps={fps},scale={W}:{H}:flags=lanczos,format=yuv444p,setsar=1[s0];"); prev = "s0"; n = 2
-        if cover:
-            inputs += loop(cover)
-            fc += f"[2:v]{rgb},format=yuva444p,setsar=1[cv];[s0][cv]overlay=0:0:shortest=1:format=yuv444[s1];"; prev = "s1"; n = 3
+        for k, (png, t0, t1) in enumerate(board_covers(cfg)):
+            lo, hi = t0 - d0, t1 - d0                     # the cover's desktop-time window, in segment time
+            if hi <= 0 or lo >= T: continue
+            inputs += loop(png); on = "" if lo <= 0 and hi >= T else f":enable='between(t,{max(0, lo):.3f},{min(T, hi):.3f})'"
+            fc += f"[{n}:v]{rgb},format=yuva444p,setsar=1[cv{k}];[{prev}][cv{k}]overlay=0:0:shortest=1:format=yuv444{on}[c{k}];"; prev = f"c{k}"; n += 1
     else:
         d = g["camera"][2]; cx, cy, cw, ch = g["card"]
         (rg, rx, ry), (sh, hx, hy), (rc, qx, qy) = (tight(layers[k]) for k in ("card_ring", "cam_shadow", "cam_ring"))

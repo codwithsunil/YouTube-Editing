@@ -62,7 +62,7 @@ def beat_offset(track, bpm, cuts, search=(0.0, 60.0)):
 def mix(cfg, face_spans, music_file, bpm, cuts, out_wav, speech_db=20.0, gap_boost_db=5.0, hp_hz=110, fade_in=0.4, fade_out=1.5,
         target_lufs=-14.0, tp_max=-1.5, stem_dir=None):
     pieces = [(a, int(round((b - a) * cfg["output"]["fps"]))) for a, b in face_spans]
-    y, _ = audio.narration_raw(cfg["sources"]["face_camera"], pieces, cfg["output"]["fps"])
+    y, _ = audio.narration_raw(cfg["sources"]["face_camera"], pieces, cfg["output"]["fps"], cfg["audio"].get("narration_patches"))
     tmp = out_wav.replace(".wav", "_narr_tmp.wav"); narr = audio.voice_chain(cfg, y, tmp); os.remove(tmp); n = len(narr)
     trk = audio.ff_float(["-i", music_file], 2); trk = sosfiltfilt(butter(4, hp_hz, "hp", fs=SR, output="sos"), trk, axis=0)
     s0, phase, cut_err = beat_offset(trk, bpm, cuts); seg = trk[int(s0 * SR):int(s0 * SR) + n]

@@ -123,3 +123,23 @@ def test_presenter_frame_is_cropped_not_stretched():
     x, y, w, h = render.frame_crop(ft, 0, 9, 2864, 1322)
     assert (y, h) == (0, 1322) and abs(w / h - 16 / 9) < 0.01
     assert render.frame_crop(ft, 0, 9, 1920, 1080) is None
+
+def test_narration_patch_replaces_a_stretch_with_own_audio():
+    """audio.narration_patches: the presenter's own audio from elsewhere replaces a misspoken stretch (lesson12),
+    crossfaded at both ends, the rest untouched."""
+    import numpy as np
+    from ytpipe import audio
+    SR = audio.SR; t = np.arange(4 * SR) / SR
+    x = np.where(t < 2, np.sin(2 * np.pi * 220 * t), np.sin(2 * np.pi * 440 * t)) * 0.5
+    y = audio.apply_patches(x, [{"at": 0.5, "from": 2.5, "dur": 1.0}])
+    mid = slice(int(0.7 * SR), int(1.3 * SR)); src = slice(int(2.7 * SR), int(3.3 * SR))
+    assert np.allclose(y[mid], x[src]) and np.allclose(y[:int(0.49 * SR)], x[:int(0.49 * SR)])
+    assert np.allclose(y[int(1.51 * SR):], x[int(1.51 * SR):])
+
+def test_touching_patches_leak_nothing_of_the_replaced_audio():
+    """Touching patches form one stretch: the replaced (loud) audio must not leak at the join between them."""
+    import numpy as np
+    from ytpipe import audio
+    SR = audio.SR; x = np.zeros(4 * SR); x[int(0.5 * SR):int(1.5 * SR)] = 0.9          # loud 'wrong word' at 0.5-1.5 s
+    y = audio.apply_patches(x, [{"at": 0.5, "from": 3.0, "dur": 0.5}, {"at": 1.0, "from": 3.0, "dur": 0.5}])   # silence over it
+    assert np.abs(y[int(0.52 * SR):int(1.48 * SR)]).max() < 1e-9

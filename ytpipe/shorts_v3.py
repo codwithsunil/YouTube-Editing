@@ -294,9 +294,12 @@ def render(cfg, final, cues, parts, offset, ft, pipeline, out, glossary_terms, e
             else:
                 bx, by, bw, bh = G["C"]["desk"]; dc = gs["desk"] if gs else focus_crop(desk, P0 + offset, P1 + offset, area, bw / bh) or content_crop(desk, P0 + offset, P1 + offset, area, counter_box, aspect=bw / bh, min_w=700)
             w, h, px, py = _fit(dc, bw, bh); x, y, cw, ch = [int(v) // 2 * 2 for v in dc]
-            cover = cfg["layout"].get("board_cover")                        # the board app's buttons hidden, as in the long video
+            covers = [(p_, lo, hi) for p_, t0, t1 in R.board_covers(cfg)      # the board app's buttons hidden, as in the long video
+                      for lo, hi in [(t0 - D0, t1 - D0)] if hi > 0 and lo < T]
+            ov = "".join(f"[d{i}];[d{i}][{2 + i}:v]overlay=0:0:shortest=1" + ("" if lo <= 0 and hi >= T else f":enable='between(t,{max(0, lo):.3f},{min(T, hi):.3f})'")
+                         for i, (_, lo, hi) in enumerate(covers))
             fc = (f"color=c={NAVY}:s={W}x{H}:r={FPS}:d={T:.4f},format=yuv420p[bg];"
-                  f"[1:v]fps={FPS}{'[d0];[d0][2:v]overlay=0:0:shortest=1' if cover else ''},crop={cw}:{ch}:{x}:{y},scale={w}:{h}:flags=lanczos,setsar=1[dk];"
+                  f"[1:v]fps={FPS}{ov},crop={cw}:{ch}:{x}:{y},scale={w}:{h}:flags=lanczos,setsar=1[dk];"
                   f"[bg][dk]overlay={bx + px}:{by + py}[s1];")
             if lay == "A":
                 fx, fy, fw_, fh_ = pres; pc = presenter_crop(ft, *(gs["parent"] if gs else (P0, P1)), fw_ / fh_, face_y=0.30)
@@ -305,7 +308,7 @@ def render(cfg, final, cues, parts, offset, ft, pipeline, out, glossary_terms, e
             else:
                 fc += f"[s1]subtitles='{_esc(ass)}'[v]"
                 info.append({"part": k, "layout": "C desktop focus", "src": [P0, P1], "desktop_crop": [x, y, cw, ch], "desktop_scale": round(w / cw, 3)})
-            cmd = base + ["-ss", f"{D0:.4f}", "-t", f"{T:.4f}", "-i", desk] + (["-loop", "1", "-framerate", str(FPS), "-t", f"{T:.4f}", "-i", cover] if cover else [])
+            cmd = base + ["-ss", f"{D0:.4f}", "-t", f"{T:.4f}", "-i", desk] + sum((["-loop", "1", "-framerate", str(FPS), "-t", f"{T:.4f}", "-i", p_] for p_, _, _ in covers), [])
         cmd += ["-filter_complex", fc, "-map", "[v]", "-t", f"{T:.4f}", "-r", str(FPS), *cfg["output"]["x264"][:6], "-pix_fmt", "yuv420p",
                 "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709", "-color_range", "tv", "-an", po]
         media.run(cmd); files.append(po)

@@ -60,7 +60,7 @@
     "slide_area": "auto",
     "counter": "auto",
     "board_cover": null,
-    "_board_cover": "layout F (desktop full frame): optional RGBA PNG drawn over the desktop, e.g. to hide a smart-board app's toolbar (lesson10)"
+    "_board_cover": "layout F (desktop full frame): optional RGBA PNG drawn over the desktop, e.g. to hide a smart-board app's toolbar (lesson10); or a list of {file, desk_from, desk_to} for covers that change over the recording (lesson12)"
   },
   "zoom": {
     "enabled": true,

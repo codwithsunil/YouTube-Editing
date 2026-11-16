@@ -64,3 +64,19 @@ def test_board_fullscreen_segment_hides_the_app_buttons(tmp_path):
     assert np.abs(f[1040, 960] - [200, 30, 30]).sum() < 40                       # the cover is on top
     cx, cy, d = g["camera"]; dk = media.frames(cfg["sources"]["desktop_recording"], 13.4, 0.04, 1920, 1080, 30, pix="rgb24")[0].astype(int)
     assert np.abs(f[cy + d // 2, cx + d // 2] - dk[cy + d // 2, cx + d // 2]).sum() < 40    # the desktop, not a circle, in the corner
+
+def test_board_covers_follow_desktop_time(tmp_path):
+    """layout.board_cover as a list of {file, desk_from, desk_to}: each cover only while the desktop is in its window
+    (lesson12: a status pill is hidden whole until writing is added beside it, then only partly)."""
+    from PIL import Image
+    cfg = make_cfg(tmp_path); meta = sources.run(cfg); a = analyze.run(cfg, meta, steps=("desktop",))
+    masks = list(np.load(os.path.join(cfg["paths"]["analysis"], "content_masks.npz")).values())
+    g = layout.geometry(cfg, a["slide_area"], masks, a["counter_box"]); L = layout.static_layers(cfg, g, str(tmp_path / "layers"))
+    red = Image.new("RGBA", (1920, 1080), (0, 0, 0, 0)); red.paste((200, 30, 30, 255), (0, 1000, 1920, 1080)); red.save(tmp_path / "red.png")
+    off = 7.4                                              # segment face 6..8 -> desktop 13.4..15.4; cover only from desktop 14.4
+    cfg["layout"]["board_cover"] = [{"file": str(tmp_path / "red.png"), "desk_from": 14.4, "desk_to": 99}]
+    assert render.board_covers(cfg)[0][1:] == (14.4, 99.0)
+    out = str(tmp_path / "f.mkv")
+    render.render_segment(render.segment(cfg, g, L, {"layout": "F", "face_in": 6.0, "face_out": 8.0}, out, off, "sdr"), out)
+    early, late = (media.frames(out, t, 0.04, 1920, 1080, 30, pix="rgb24")[0].astype(int)[1040, 960] for t in (0.3, 1.6))
+    assert np.abs(late - [200, 30, 30]).sum() < 40 and np.abs(early - [200, 30, 30]).sum() > 60

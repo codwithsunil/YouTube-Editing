@@ -244,7 +244,7 @@ def main(argv=None):
             for a_, b_ in zip(bs_, bs_[1:]):                   # sync sections: each stretch with its own desktop offset
                 o_ = sync.desk_offset(E["segments"], a_, off_); ink += shorts_v3.ink_runs(cfg["sources"]["desktop_recording"], a_ + o_, b_ + o_, o_)
             parts = shorts_v3.plan(F0, F1, [l["face"] for l in lines if F0 <= l["face"] <= F1], env, ink)
-            if cfg["shorts"].get("v4", {}).get("presenter_only_when_facing"): parts = shorts_v3.facing_parts(parts, ft)
+            if cfg["shorts"].get("v4", {}).get("presenter_only_when_facing"): parts = shorts_v3.facing_parts(parts, ft, cfg["shorts"]["v4"].get("presenter_min_s", 2.0))
             pipe = meta()["face_color_pipeline"] if os.path.exists(os.path.join(A, "metadata.json")) else "libplacebo"
             if a.style == "v4":                              # approved 2026-10-22: tightened pauses, 2-4 word captions, music, guided split
                 from . import shorts_audio, shorts_focus

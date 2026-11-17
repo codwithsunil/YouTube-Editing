@@ -79,7 +79,7 @@ def _token(transport, form):
     s, _, b = transport("POST", TOKEN_URL, {"Content-Type": "application/x-www-form-urlencoded"}, urllib.parse.urlencode(form).encode())
     js = json.loads(b or b"{}")
     if s != 200: raise YTError(f"token request failed ({s}): {js.get('error_description') or js.get('error')}"
-                               + (" — sign in again: python -m ytpipe.youtube auth --client <file>" if js.get("error") == "invalid_grant" else ""))
+                               + (" — sign in again: python -m ytpipe.youtube auth" if js.get("error") == "invalid_grant" else ""))
     return js
 
 # ---------------------------------------------------------------- REST client
@@ -361,11 +361,13 @@ def main(argv=None):
     ids = lambda: json.load(open(ids_path, encoding="utf-8")) if os.path.exists(ids_path) else {}
     try:
         if a.cmd == "auth":
-            if not a.client: raise YTError("--client <client_secret.json> (Google Cloud → Credentials → OAuth client, Desktop app)")
-            c = client_from_file(a.client); rt = authorize(c)
+            kc = _keychain_get("client")                    # signing in again (testing-mode tokens expire after 7 days):
+            if not a.client and not kc:                     # the client stored at the first sign-in is reused
+                raise YTError("--client <client_secret.json> (Google Cloud → Credentials → OAuth client, Desktop app)")
+            c = client_from_file(a.client) if a.client else json.loads(kc); rt = authorize(c)
             _keychain_set("client", json.dumps(c)); _keychain_set("refresh_token", rt)
             ch = Client(c, rt).channel(); print(f"signed in: {ch['title']} ({ch['handle']}); keys stored in the Keychain ({SERVICE})")
-            print(f"you can now delete {a.client}")
+            if a.client: print(f"you can now delete {a.client}")
         elif a.cmd == "stage":
             out = stage(S, os.path.join(d, "upload")); print(f"{len(out)} files in {os.path.join(d, 'upload')}: drag them into YouTube Studio → Create → Upload videos"
                                                             " (up to 15 at once), then close the dialog without editing")

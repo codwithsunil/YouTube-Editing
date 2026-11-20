@@ -124,6 +124,16 @@ def test_presenter_frame_is_cropped_not_stretched():
     assert (y, h) == (0, 1322) and abs(w / h - 16 / 9) < 0.01
     assert render.frame_crop(ft, 0, 9, 1920, 1080) is None
 
+def test_punch_in_keeps_the_face_in_place():
+    """lesson13: a tightened pause inside one camera take; the shot after the cut is 12% closer, scaled about the face
+    (the face stays where it was, so the cut reads as a zoom, not a jump), and the crop stays 16:9 inside the frame."""
+    import numpy as np
+    from ytpipe import render
+    ft = np.array([[t, 1100.0, 400.0, 300.0] for t in range(10)])
+    x, y, w, h = render.punch_crop(ft, 0, 9, 1920, 1080, 1.12)
+    assert abs(w - 1920 / 1.12) <= 2 and abs(w / h - 16 / 9) < 0.01 and 0 <= x <= 1920 - w and 0 <= y <= 1080 - h
+    assert abs((1100 - x) / w - 1100 / 1920) < 0.002 and abs((400 - y) / h - 400 / 1080) < 0.002
+
 def test_narration_patch_replaces_a_stretch_with_own_audio():
     """audio.narration_patches: the presenter's own audio from elsewhere replaces a misspoken stretch (lesson12),
     crossfaded at both ends, the rest untouched."""

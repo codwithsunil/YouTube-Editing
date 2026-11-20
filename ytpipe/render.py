@@ -64,6 +64,14 @@ def wide_crop(path, W=1920, H=1080):
     cw = int(round(h * W / H / 2)) * 2
     return [(w - cw) // 2, 0, cw, h] if cw < w - 2 else None
 
+def punch_crop(face_track, a, b, src_w, src_h, z):
+    """Camera punch-in by z (lesson13: a pause tightened inside one camera take; the slightly closer shot after the cut
+    hides the jump, user 2026-11-17). The crop scales about the median face, so the face keeps its place in the frame."""
+    f = _face_median(face_track, a, b, src_w, src_h) or (src_w / 2, src_h / 2)
+    cw, ch = int(round(src_w / z / 2)) * 2, int(round(src_h / z / 2)) * 2
+    x0 = min(max(0, f[0] - f[0] / src_w * cw), src_w - cw); y0 = min(max(0, f[1] - f[1] / src_h * ch), src_h - ch)
+    return [int(round(x0)), int(round(y0)), cw, ch]
+
 def frame_crop(face_track, a, b, src_w, src_h, W=1920, H=1080, face_y=0.36):
     """Layout A crop to W:H around the median face of the shot (fixed per shot), so the camera is never stretched.
     Wider source (e.g. 2864x1322): full height, sides cropped. Narrower source (lesson09: a cropped export, 1342x968):

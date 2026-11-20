@@ -46,6 +46,22 @@ def test_thumbnail_decision_layout(tmp_path):
         right = person[0] + person[1] * 400 / 500
         assert (min(pills) >= right - 15) if side == "left" else (max(pills) + 180 <= person[0] + 40)
 
+def test_thumbnail_memory_layout(tmp_path):
+    """Lesson13 ('write variable and its type, memory allocation'): value row int -> 12, reference row string -> address ->
+    data on the heap; every readable word is phone-size (>= 52 px) and the last box ends left of the cut-out."""
+    import re
+    from PIL import Image
+    from ytpipe import thumbs_v2
+    src = str(tmp_path / "cut.png"); Image.new("RGBA", (400, 500), (200, 180, 160, 255)).save(src)
+    o = {"layout": "memory", "headline": ["VALUE OR", "ADDRESS?"], "mark": ["ADDRESS?"], "value": ["int", "12"],
+         "ref": ["string", "0x2A", "Sunil"], "person_h": 480, "person_dx": 70}
+    body, face, _ = thumbs_v2.page_memory(o, (src, [0.3, 0.1, 0.7, 0.4]))
+    assert all(t in body for t in (">int<", ">12<", ">string<", ">0x2A<", ">Sunil<", ">HEAP<"))
+    assert all(int(px) >= 52 for px in re.findall(r'data-qa="text"[^>]*font:800 (\d+)px', body))
+    boxes = [(float(x), float(w)) for x, w in re.findall(r'data-qa="text" style="left:([\d.]+)px;top:[\d.]+px;width:([\d.]+)px', body)]
+    person = float(re.search(r'class="person [^"]*"[^>]*left:(-?[\d.]+)px', body).group(1))
+    assert len(boxes) == 3 and max(x + w for x, w in boxes) <= person + 40
+
 def test_thumbnail_text_behind_the_shoulder_fails_qa(tmp_path):
     """Lesson 04 option 3: the 'ODD' pill sat behind the shoulder while the face-only check passed."""
     from PIL import Image

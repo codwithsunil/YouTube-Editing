@@ -57,6 +57,7 @@ def build(cfg, plan, analysis, meta, out_mp4, only=None, gate="full_render", wd=
         for i in grp: bc[i] = c
     for i, s in enumerate(base):
         if s["layout"] == "A": bc[i] = render.frame_crop(ft, s["face_in"], s["face_out"], sw, sh, g["W"], g["H"])
+        if s["layout"] == "A" and s.get("punch_in"): bc[i] = render.punch_crop(ft, s["face_in"], s["face_out"], sw, sh, s["punch_in"])
     crops = {i: bc.get(s.get("parent", i)) for i, s in enumerate(segs)}
     els = graphics.render_elements(cfg, plan.get("elements", [])) if plan.get("elements") else {}
     nums = slide_numbers(analysis["slide_changes"], off) if (g.get("counter") or {}).get("hidden_by_camera") else []

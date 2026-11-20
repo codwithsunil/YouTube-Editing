@@ -332,12 +332,41 @@ def page_decision(o, person):
             + tag + _big(o["headline"], o.get("mark", ()), L, 56, o.get("size", 100)))
     return body, face, vars_
 
-V3 = ("versus", "journey", "paper", "stairs", "decision")          # v3: large face by design (head box up to 400 px)
+def page_memory(o, person):
+    """Variables in memory (lesson13, user 2026-11-17: 'write variable and its type, memory allocation'): a value-type row
+    (`value`: [type, value], the value sits in the variable's own box) and a reference-type row (`ref`: [type, address,
+    data], the box holds an address that points to the data on the heap). Headline top-left, large face right. Code and
+    boxes at 56 px (phone-readable); the row captions are small labels, the headline carries the idea."""
+    src, ff = person; im = Image.open(src); h = o.get("person_h", 640); w = h * im.width / im.height
+    tag, face, pb = _person(src, ff, 1280 - w + 60 + o.get("person_dx", 0), 720, h)
+    vt, vv = o.get("value", ["int", "12"]); rt, ra, rd = o.get("ref", ["string", "0x2A", "Sunil"])
+    e = _h.escape; L, y1, y2, ch, fs = 64, 322, 502, 34, 56
+    code = lambda y, t, c: (f'<div class="abs" data-qa="text" style="left:{L}px;top:{y + 12}px;font:800 {fs}px \'JetBrains Mono\';color:{c};'
+                            f'white-space:nowrap">{e(t)}</div>')
+    box = lambda x, y, t, c: (f'<div class="abs" data-qa="text" style="left:{x}px;top:{y}px;width:{ch * len(t) + 44}px;height:96px;border:5px solid {c};'
+                              f'border-radius:18px;background:#0F172A;color:#F8FAFC;font:800 {fs}px/86px \'JetBrains Mono\';text-align:center;'
+                              f'white-space:nowrap;box-shadow:0 16px 34px rgba(0,0,0,.5)">{e(t)}</div>')
+    lab = lambda x, y, t, c: f'<div class="abs" style="left:{x}px;top:{y}px;font:900 26px Poppins;letter-spacing:.14em;color:{c}">{e(t)}</div>'
+    arr = lambda x0, x1, y, c: (f'<path d="M{x0} {y} H{x1} M{x1 - 14} {y - 13} L{x1} {y} L{x1 - 14} {y + 13}" stroke="{c}" stroke-width="7" fill="none" '
+                                'stroke-linecap="round" stroke-linejoin="round"/>')
+    xb = L + ch * max(len(vt), len(rt)) + 76                                    # memory boxes start after the longer type name
+    xh = xb + ch * len(ra) + 44 + 76
+    svg = (f'<svg class="abs" style="left:0;top:0" width="1280" height="720">' + arr(xb - 60, xb - 12, y1 + 48, "#A3E635")
+           + arr(xb - 60, xb - 12, y2 + 48, "#38BDF8") + arr(xh - 66, xh - 12, y2 + 48, "#38BDF8") + '</svg>')
+    body = (f'<style>{V3_CSS}</style><div class="backlight" style="left:{pb[0] + 40:.0f}px;top:90px;width:540px;height:540px;background:rgba(56,189,248,.20)"></div>'
+            + lab(L, y1 - 34, "VALUE TYPE", "#A3E635") + code(y1, vt, "#A3E635") + box(xb, y1, vv, "#A3E635")
+            + lab(L, y2 - 34, "REFERENCE TYPE", "#38BDF8") + code(y2, rt, "#38BDF8") + box(xb, y2, ra, "#38BDF8")
+            + box(xh, y2, rd, "#FACC15") + lab(xh, y2 + 108, "HEAP", "#FDE68A") + svg
+            + tag + _big(o["headline"], o.get("mark", ()), L, 56, o.get("size", 100)))
+    return body, face, "--lx:80%;--ly:40%;--gx:10%;--gy:96%"
+
+V3 = ("versus", "journey", "paper", "stairs", "decision", "memory")  # v3: large face by design (head box up to 400 px)
 LAYOUTS = {"premium": (page_premium, "confident", "bust"), "concept": (page_concept, "explaining", "head"),
            "curious": (page_curious, "curious", "half"),
            "versus": (page_versus, "confident", "head"), "journey": (page_journey, "confident", "head"),
            "paper": (page_paper, "explaining", "head"), "stairs": (page_stairs, "confident", "head"),
-           "decision": (page_decision, "confident", "head")}
+           "decision": (page_decision, "confident", "head"),
+           "memory": (page_memory, "confident", "head")}
 
 def render(o, person, out_png):
     body, face, vars_ = LAYOUTS[o["layout"]][0](o, person)
